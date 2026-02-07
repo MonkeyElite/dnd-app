@@ -1,0 +1,66 @@
+# ------------------------------
+# OS / Editor
+# ------------------------------
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ------------------------------
+# Visual Studio / .NET
+# ------------------------------
+.vs/
+[Bb]in/
+[Oo]bj/
+out/
+TestResults/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+*.nupkg
+*.snupkg
+artifacts/
+
+# ------------------------------
+# Logs
+# ------------------------------
+*.log
+logs/
+
+# ------------------------------
+# Environment / secrets
+# ------------------------------
+.env
+.env.*
+!.env.example
+*.secrets.json
+
+# ------------------------------
+# Docker local overrides
+# ------------------------------
+docker-compose.override.yml
+
+# ------------------------------
+# Node (if added later)
+# ------------------------------
+node_modules/
+
+# ------------------------------
+# Python (if added later)
+# ------------------------------
+__pycache__/
+*.pyc
+
+# ------------------------------
+# Flutter / Dart
+# ------------------------------
+.dart_tool/
+.packages
+.pub-cache/
+.pub/
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
