@@ -24,15 +24,50 @@ public sealed class IdentityServiceClient(HttpClient httpClient, ILogger<Identit
         CancellationToken cancellationToken = default)
         => SendPostAsJsonAsync($"/campaigns/{campaignId}/invites", request, authorizationHeader, cancellationToken);
 
-    private async Task<ForwardedJsonResponse> SendPostAsJsonAsync<TRequest>(
+    public Task<ForwardedJsonResponse> ForwardUpsertCampaignMembershipAsync(
+        IdentityUpsertCampaignMembershipRequest request,
+        string? authorizationHeader,
+        CancellationToken cancellationToken = default)
+        => SendPostAsJsonAsync("/campaign-memberships", request, authorizationHeader, cancellationToken);
+
+    public Task<ForwardedJsonResponse> ForwardGetMyCampaignMembershipsAsync(
+        string? authorizationHeader,
+        CancellationToken cancellationToken = default)
+        => SendAsync(HttpMethod.Get, "/me/campaign-memberships", authorizationHeader, content: null, cancellationToken);
+
+    public Task<ForwardedJsonResponse> ForwardGetMyCampaignMembershipForCampaignAsync(
+        Guid campaignId,
+        string? authorizationHeader,
+        CancellationToken cancellationToken = default)
+        => SendAsync(
+            HttpMethod.Get,
+            $"/campaigns/{campaignId}/members/me",
+            authorizationHeader,
+            content: null,
+            cancellationToken);
+
+    private Task<ForwardedJsonResponse> SendPostAsJsonAsync<TRequest>(
         string relativePath,
         TRequest payload,
         string? authorizationHeader,
         CancellationToken cancellationToken)
+        => SendAsync(
+            HttpMethod.Post,
+            relativePath,
+            authorizationHeader,
+            JsonContent.Create(payload),
+            cancellationToken);
+
+    private async Task<ForwardedJsonResponse> SendAsync(
+        HttpMethod method,
+        string relativePath,
+        string? authorizationHeader,
+        HttpContent? content,
+        CancellationToken cancellationToken)
     {
-        using var httpRequest = new HttpRequestMessage(HttpMethod.Post, relativePath)
+        using var httpRequest = new HttpRequestMessage(method, relativePath)
         {
-            Content = JsonContent.Create(payload)
+            Content = content
         };
 
         if (!string.IsNullOrWhiteSpace(authorizationHeader))

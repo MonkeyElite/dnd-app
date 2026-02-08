@@ -16,8 +16,11 @@ public static class RoleRules
         return false;
     }
 
-    public static bool CanManageInvites(string role)
+    public static bool CanManageCampaignMembers(string role)
         => role is nameof(Role.Owner) or nameof(Role.Admin);
+
+    public static bool CanManageInvites(string role)
+        => CanManageCampaignMembers(role);
 
     public static bool CanAssignInviteRole(string role)
         => role is nameof(Role.Member)
