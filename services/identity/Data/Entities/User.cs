@@ -10,6 +10,8 @@ public sealed class User
 
     public string DisplayName { get; set; } = string.Empty;
 
+    public bool IsPlatformAdmin { get; set; }
+
     public DateTimeOffset CreatedAt { get; set; }
 
     public ICollection<CampaignMembership> CampaignMemberships { get; set; } = new List<CampaignMembership>();

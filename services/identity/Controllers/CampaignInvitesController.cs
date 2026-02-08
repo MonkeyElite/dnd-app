@@ -128,6 +128,17 @@ public sealed class CampaignInvitesController(
 
     private async Task<bool> CanManageInvitesAsync(Guid campaignId, Guid userId, CancellationToken cancellationToken)
     {
+        var isPlatformAdmin = await dbContext.Users
+            .AsNoTracking()
+            .Where(x => x.UserId == userId)
+            .Select(x => (bool?)x.IsPlatformAdmin)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (isPlatformAdmin is true)
+        {
+            return true;
+        }
+
         var role = await dbContext.CampaignMemberships
             .AsNoTracking()
             .Where(x => x.CampaignId == campaignId && x.UserId == userId)

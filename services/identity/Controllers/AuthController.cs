@@ -84,6 +84,7 @@ public sealed class AuthController(
             Username = username,
             PasswordHash = passwordHasher.HashPassword(request.Password),
             DisplayName = displayName,
+            IsPlatformAdmin = false,
             CreatedAt = now
         };
 
@@ -115,7 +116,7 @@ public sealed class AuthController(
         return new AuthResponse(
             AccessToken: accessToken,
             RefreshToken: null,
-            User: new AuthUserResponse(user.UserId, user.Username, user.DisplayName));
+            User: new AuthUserResponse(user.UserId, user.Username, user.DisplayName, user.IsPlatformAdmin));
     }
 
     private static string? ValidateLoginRequest(LoginRequest request)

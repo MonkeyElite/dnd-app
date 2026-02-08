@@ -24,7 +24,8 @@ public sealed class JwtTokenService(IOptions<AuthOptions> options) : IJwtTokenSe
         {
             new Claim(JwtRegisteredClaimNames.Sub, user.UserId.ToString()),
             new Claim("username", user.Username),
-            new Claim("displayName", user.DisplayName)
+            new Claim("displayName", user.DisplayName),
+            new Claim("isPlatformAdmin", user.IsPlatformAdmin ? "true" : "false")
         };
 
         var signingCredentials = new SigningCredentials(

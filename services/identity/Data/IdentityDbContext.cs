@@ -20,6 +20,7 @@ public sealed class IdentityDbContext(DbContextOptions<IdentityDbContext> option
             entity.Property(x => x.Username).HasMaxLength(50).IsRequired();
             entity.Property(x => x.PasswordHash).IsRequired();
             entity.Property(x => x.DisplayName).HasMaxLength(50).IsRequired();
+            entity.Property(x => x.IsPlatformAdmin).IsRequired().HasDefaultValue(false);
             entity.Property(x => x.CreatedAt).IsRequired();
             entity.HasIndex(x => x.Username).IsUnique();
         });

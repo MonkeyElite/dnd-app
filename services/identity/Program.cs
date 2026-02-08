@@ -2,6 +2,7 @@ using System.Text;
 using DndApp.Identity.Data;
 using DndApp.Identity.Options;
 using DndApp.Identity.Security;
+using DndApp.Identity.Seeding;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.EntityFrameworkCore;
@@ -25,10 +26,12 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddHealthChecks();
 builder.Services.AddDbContext<IdentityDbContext>(options => options.UseNpgsql(connectionString));
 builder.Services.Configure<AuthOptions>(builder.Configuration.GetSection(AuthOptions.SectionName));
+builder.Services.Configure<DevSeedOptions>(builder.Configuration.GetSection(DevSeedOptions.SectionName));
 builder.Services.AddScoped<IPasswordHasher, BcryptPasswordHasher>();
 builder.Services.AddSingleton<IInviteCodeHasher, InviteCodeHasher>();
 builder.Services.AddSingleton<IInviteCodeGenerator, InviteCodeGenerator>();
 builder.Services.AddSingleton<IJwtTokenService, JwtTokenService>();
+builder.Services.AddScoped<DevSeeder>();
 
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -56,10 +59,7 @@ if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
-
-    using var scope = app.Services.CreateScope();
-    var dbContext = scope.ServiceProvider.GetRequiredService<IdentityDbContext>();
-    dbContext.Database.Migrate();
+    await ApplyMigrationsAndDevSeedAsync(app.Services, app.Logger);
 }
 
 app.UseAuthentication();
@@ -84,5 +84,41 @@ app.MapHealthChecks("/health/ready", new HealthCheckOptions
 });
 
 app.Run();
+
+static async Task ApplyMigrationsAndDevSeedAsync(IServiceProvider services, ILogger logger)
+{
+    const int maxAttempts = 10;
+    var delay = TimeSpan.FromSeconds(3);
+
+    for (var attempt = 1; attempt <= maxAttempts; attempt++)
+    {
+        try
+        {
+            using var scope = services.CreateScope();
+            var dbContext = scope.ServiceProvider.GetRequiredService<IdentityDbContext>();
+            await dbContext.Database.MigrateAsync();
+            var devSeeder = scope.ServiceProvider.GetRequiredService<DevSeeder>();
+            await devSeeder.SeedAsync();
+            return;
+        }
+        catch (Exception exception) when (attempt < maxAttempts)
+        {
+            logger.LogWarning(
+                exception,
+                "Failed to apply migrations/dev seed on attempt {Attempt}/{MaxAttempts}. Retrying in {DelaySeconds}s.",
+                attempt,
+                maxAttempts,
+                delay.TotalSeconds);
+
+            await Task.Delay(delay);
+        }
+    }
+
+    using var finalScope = services.CreateScope();
+    var finalDbContext = finalScope.ServiceProvider.GetRequiredService<IdentityDbContext>();
+    await finalDbContext.Database.MigrateAsync();
+    var finalSeeder = finalScope.ServiceProvider.GetRequiredService<DevSeeder>();
+    await finalSeeder.SeedAsync();
+}
 
 public partial class Program;

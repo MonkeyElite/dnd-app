@@ -97,6 +97,10 @@ services:
       Auth__Jwt__Audience: ${JWT_AUDIENCE:-dnd-app-clients}
       Auth__Jwt__SigningKey: ${JWT_SIGNING_KEY:-replace-with-a-minimum-32-character-signing-key}
       Auth__InvitePepper: ${AUTH_INVITE_PEPPER:-replace-with-a-dev-invite-pepper}
+      DevSeed__Enabled: ${DEVSEED_ENABLED:-true}
+      DevSeed__AdminUsername: ${DEVSEED_ADMIN_USERNAME:-admin}
+      DevSeed__AdminPassword: ${DEVSEED_ADMIN_PASSWORD:-admin}
+      DevSeed__AdminDisplayName: ${DEVSEED_ADMIN_DISPLAY_NAME:-Platform Admin}
     depends_on:
       - postgres
       - rabbitmq
