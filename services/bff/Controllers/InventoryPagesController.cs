@@ -2,6 +2,7 @@ using DndApp.Bff.Clients;
 using DndApp.Bff.Contracts;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace DndApp.Bff.Controllers;
 
@@ -12,8 +13,12 @@ public sealed class InventoryPagesController(
     CampaignServiceClient campaignServiceClient,
     CatalogServiceClient catalogServiceClient,
     InventoryServiceClient inventoryServiceClient,
+    MediaServiceClient mediaServiceClient,
+    IMemoryCache memoryCache,
     IdentityServiceClient identityServiceClient) : CampaignAuthorizationControllerBase(identityServiceClient)
 {
+    private const int DownloadUrlCacheMaxLifetimeSeconds = 5 * 60;
+
     [HttpGet("inventory")]
     public async Task<IActionResult> GetInventoryPageAsync(
         [FromQuery] Guid campaignId,
@@ -174,6 +179,12 @@ public sealed class InventoryPagesController(
         var tagsById = tags.ToDictionary(x => x.TagId, x => x.Name);
         var itemsById = items.ToDictionary(x => x.ItemId);
         var storageLocationsById = storageLocations.ToDictionary(x => x.StorageLocationId);
+        var imageUrlsByAssetId = await ResolveImageUrlsByAssetIdAsync(
+            campaignId,
+            items,
+            authorizationHeader,
+            mediaServiceClient,
+            cancellationToken);
 
         var rows = new List<InventoryPageRowDto>();
         foreach (var summaryRow in summary.Rows)
@@ -206,7 +217,11 @@ public sealed class InventoryPagesController(
                 item.Name,
                 categoryName,
                 unitName,
-                new InventoryPageImageDto(item.ImageAssetId, Url: null),
+                new InventoryPageImageDto(
+                    item.ImageAssetId,
+                    item.ImageAssetId.HasValue
+                        ? imageUrlsByAssetId.GetValueOrDefault(item.ImageAssetId.Value)
+                        : null),
                 summaryRow.StorageLocationId,
                 location.Name,
                 summaryRow.OnHandQuantity));
@@ -259,4 +274,89 @@ public sealed class InventoryPagesController(
 
         return tagNames.Any(x => x.Contains(normalizedSearch, StringComparison.OrdinalIgnoreCase));
     }
+
+    private async Task<Dictionary<Guid, string?>> ResolveImageUrlsByAssetIdAsync(
+        Guid campaignId,
+        IReadOnlyCollection<CatalogItemDto> items,
+        string authorizationHeader,
+        MediaServiceClient mediaServiceClient,
+        CancellationToken cancellationToken)
+    {
+        var assetIds = items
+            .Where(x => x.ImageAssetId.HasValue)
+            .Select(x => x.ImageAssetId!.Value)
+            .Distinct()
+            .ToList();
+
+        if (assetIds.Count == 0)
+        {
+            return [];
+        }
+
+        var tasks = assetIds.ToDictionary(
+            assetId => assetId,
+            assetId => TryGetDownloadUrlAsync(
+                campaignId,
+                assetId,
+                authorizationHeader,
+                mediaServiceClient,
+                memoryCache,
+                cancellationToken));
+
+        await Task.WhenAll(tasks.Values);
+
+        return tasks.ToDictionary(kvp => kvp.Key, kvp => kvp.Value.Result);
+    }
+
+    private async Task<string?> TryGetDownloadUrlAsync(
+        Guid campaignId,
+        Guid assetId,
+        string authorizationHeader,
+        MediaServiceClient mediaServiceClient,
+        IMemoryCache memoryCache,
+        CancellationToken cancellationToken)
+    {
+        var cacheKey = CreateDownloadUrlCacheKey(campaignId, assetId);
+        if (memoryCache.TryGetValue(cacheKey, out CachedDownloadUrl? cached)
+            && cached is not null
+            && !string.IsNullOrWhiteSpace(cached.Url)
+            && cached.ExpiresAt > DateTimeOffset.UtcNow.AddSeconds(30))
+        {
+            return cached.Url;
+        }
+
+        var response = await mediaServiceClient.ForwardGetDownloadUrlAsync(
+            campaignId,
+            assetId,
+            expiresInSeconds: null,
+            authorizationHeader,
+            cancellationToken);
+
+        if (!IsSuccessStatusCode(response.StatusCode))
+        {
+            return null;
+        }
+
+        var payload = DeserializeBody<MediaDownloadUrlResponse>(response.Body);
+        if (payload is null || string.IsNullOrWhiteSpace(payload.Url))
+        {
+            return null;
+        }
+
+        var now = DateTimeOffset.UtcNow;
+        var cacheDuration = payload.ExpiresAt - now;
+        if (cacheDuration > TimeSpan.Zero)
+        {
+            var maxDuration = TimeSpan.FromSeconds(DownloadUrlCacheMaxLifetimeSeconds);
+            var effectiveDuration = cacheDuration > maxDuration ? maxDuration : cacheDuration;
+            memoryCache.Set(cacheKey, new CachedDownloadUrl(payload.Url, payload.ExpiresAt), effectiveDuration);
+        }
+
+        return payload.Url;
+    }
+
+    private static string CreateDownloadUrlCacheKey(Guid campaignId, Guid assetId)
+        => $"media-download-url:{campaignId:D}:{assetId:D}";
+
+    private sealed record CachedDownloadUrl(string Url, DateTimeOffset ExpiresAt);
 }

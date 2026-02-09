@@ -49,8 +49,8 @@ services:
     entrypoint: >
       /bin/sh -c "
       until mc alias set local http://minio:9000 ${MINIO_ROOT_USER:-minioadmin} ${MINIO_ROOT_PASSWORD:-minioadmin}; do sleep 2; done;
-      mc mb -p local/${MINIO_BUCKET:-media} || true;
-      mc anonymous set none local/${MINIO_BUCKET:-media} || true;
+      mc mb -p local/${MINIO_BUCKET:-dndshop} || true;
+      mc anonymous set none local/${MINIO_BUCKET:-dndshop} || true;
       exit 0;
       "
 
@@ -189,17 +189,18 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Development}
       ConnectionStrings__Default: Host=postgres;Port=5432;Database=${MEDIA_DB:-media_db};Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD:-postgres}
-      RabbitMQ__Host: rabbitmq
-      RabbitMQ__Port: 5672
-      RabbitMQ__User: ${RABBITMQ_DEFAULT_USER:-guest}
-      RabbitMQ__Password: ${RABBITMQ_DEFAULT_PASS:-guest}
-      Minio__Endpoint: minio:9000
-      Minio__AccessKey: ${MINIO_ROOT_USER:-minioadmin}
-      Minio__SecretKey: ${MINIO_ROOT_PASSWORD:-minioadmin}
-      Minio__Bucket: ${MINIO_BUCKET:-media}
+      Storage__S3__Endpoint: ${MEDIA_S3_ENDPOINT:-minio:9000}
+      Storage__S3__AccessKey: ${MINIO_ROOT_USER:-minioadmin}
+      Storage__S3__SecretKey: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      Storage__S3__UseSsl: ${MEDIA_S3_USE_SSL:-false}
+      Storage__S3__Bucket: ${MINIO_BUCKET:-dndshop}
+      Storage__S3__Region: ${MEDIA_S3_REGION:-}
+      Storage__S3__PublicBaseUrl: ${MINIO_PUBLIC_BASE_URL:-http://localhost:9000}
+      Auth__Jwt__Issuer: ${JWT_ISSUER:-dnd-app}
+      Auth__Jwt__Audience: ${JWT_AUDIENCE:-dnd-app-clients}
+      Auth__Jwt__SigningKey: ${JWT_SIGNING_KEY:-replace-with-a-minimum-32-character-signing-key}
     depends_on:
       - postgres
-      - rabbitmq
       - minio
 
 volumes:
