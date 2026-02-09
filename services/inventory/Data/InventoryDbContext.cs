@@ -11,6 +11,8 @@ public sealed class InventoryDbContext(DbContextOptions<InventoryDbContext> opti
 
     public DbSet<InventoryAdjustment> InventoryAdjustments => Set<InventoryAdjustment>();
 
+    public DbSet<ProcessedEvent> ProcessedEvents => Set<ProcessedEvent>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<StorageLocation>(entity =>
@@ -94,6 +96,14 @@ public sealed class InventoryDbContext(DbContextOptions<InventoryDbContext> opti
                 .WithMany(x => x.Adjustments)
                 .HasForeignKey(x => x.LotId)
                 .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<ProcessedEvent>(entity =>
+        {
+            entity.ToTable("ProcessedEvents");
+            entity.HasKey(x => x.EventId);
+            entity.Property(x => x.EventId).IsRequired();
+            entity.Property(x => x.ProcessedAt).IsRequired();
         });
     }
 }

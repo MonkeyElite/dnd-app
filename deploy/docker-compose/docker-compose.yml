@@ -152,6 +152,8 @@ services:
       RabbitMQ__Port: 5672
       RabbitMQ__User: ${RABBITMQ_DEFAULT_USER:-guest}
       RabbitMQ__Password: ${RABBITMQ_DEFAULT_PASS:-guest}
+      RabbitMQ__Exchange: ${RABBITMQ_EVENTS_EXCHANGE:-dndshop.events}
+      RabbitMQ__InventoryQueue: ${RABBITMQ_INVENTORY_QUEUE:-inventory.events}
       Auth__Jwt__Issuer: ${JWT_ISSUER:-dnd-app}
       Auth__Jwt__Audience: ${JWT_AUDIENCE:-dnd-app-clients}
       Auth__Jwt__SigningKey: ${JWT_SIGNING_KEY:-replace-with-a-minimum-32-character-signing-key}
@@ -165,11 +167,17 @@ services:
       dockerfile: services/sales/Dockerfile
     environment:
       ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Development}
-      ConnectionStrings__Database: Host=postgres;Port=5432;Database=${SALES_DB:-sales_db};Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD:-postgres}
+      ConnectionStrings__Default: Host=postgres;Port=5432;Database=${SALES_DB:-sales_db};Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD:-postgres}
       RabbitMQ__Host: rabbitmq
       RabbitMQ__Port: 5672
       RabbitMQ__User: ${RABBITMQ_DEFAULT_USER:-guest}
       RabbitMQ__Password: ${RABBITMQ_DEFAULT_PASS:-guest}
+      RabbitMQ__Exchange: ${RABBITMQ_EVENTS_EXCHANGE:-dndshop.events}
+      RabbitMQ__InventoryQueue: ${RABBITMQ_INVENTORY_QUEUE:-inventory.events}
+      Auth__Jwt__Issuer: ${JWT_ISSUER:-dnd-app}
+      Auth__Jwt__Audience: ${JWT_AUDIENCE:-dnd-app-clients}
+      Auth__Jwt__SigningKey: ${JWT_SIGNING_KEY:-replace-with-a-minimum-32-character-signing-key}
+      Sales__DefaultCurrencyCode: ${SALES_DEFAULT_CURRENCY_CODE:-GSC}
     depends_on:
       - postgres
       - rabbitmq
@@ -180,7 +188,7 @@ services:
       dockerfile: services/media/Dockerfile
     environment:
       ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Development}
-      ConnectionStrings__Database: Host=postgres;Port=5432;Database=${MEDIA_DB:-media_db};Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD:-postgres}
+      ConnectionStrings__Default: Host=postgres;Port=5432;Database=${MEDIA_DB:-media_db};Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD:-postgres}
       RabbitMQ__Host: rabbitmq
       RabbitMQ__Port: 5672
       RabbitMQ__User: ${RABBITMQ_DEFAULT_USER:-guest}

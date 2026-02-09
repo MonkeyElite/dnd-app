@@ -1,5 +1,7 @@
 using System.Text;
 using DndApp.Inventory.Data;
+using DndApp.Inventory.Messaging;
+using DndApp.Inventory.Options;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.EntityFrameworkCore;
@@ -23,6 +25,8 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddHealthChecks();
 builder.Services.AddDbContext<InventoryDbContext>(options => options.UseNpgsql(connectionString));
+builder.Services.Configure<RabbitMqOptions>(builder.Configuration.GetSection("RabbitMQ"));
+builder.Services.AddHostedService<SaleCompletedConsumerHostedService>();
 
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)

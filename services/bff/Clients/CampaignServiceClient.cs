@@ -61,6 +61,21 @@ public sealed class CampaignServiceClient(HttpClient httpClient, ILogger<Campaig
             content: null,
             cancellationToken);
 
+    public Task<ForwardedJsonResponse> ForwardGetCustomersAsync(
+        Guid campaignId,
+        string? search,
+        string? authorizationHeader,
+        CancellationToken cancellationToken = default)
+    {
+        var relativePath = $"/campaigns/{campaignId}/customers";
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            relativePath += $"?search={Uri.EscapeDataString(search.Trim())}";
+        }
+
+        return SendAsync(HttpMethod.Get, relativePath, authorizationHeader, content: null, cancellationToken);
+    }
+
     public Task<ForwardedJsonResponse> ForwardUpdateCurrencySettingsAsync(
         Guid campaignId,
         CampaignCurrencyUpdateRequest request,

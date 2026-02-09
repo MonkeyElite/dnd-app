@@ -139,6 +139,20 @@ namespace DndApp.Inventory.Data.Migrations
                         });
                 });
 
+            modelBuilder.Entity("DndApp.Inventory.Data.Entities.ProcessedEvent", b =>
+                {
+                    b.Property<Guid>("EventId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("ProcessedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("EventId");
+
+                    b.ToTable("ProcessedEvents", (string)null);
+                });
+
             modelBuilder.Entity("DndApp.Inventory.Data.Entities.StorageLocation", b =>
                 {
                     b.Property<Guid>("StorageLocationId")

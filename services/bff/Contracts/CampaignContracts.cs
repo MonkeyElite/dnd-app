@@ -42,6 +42,13 @@ public sealed record CampaignDetailsDto(
 
 public sealed record CampaignPlaceDto(Guid PlaceId, Guid CampaignId, string Name, string Type, string? Notes);
 
+public sealed record CampaignCustomerDto(
+    Guid CustomerId,
+    Guid CampaignId,
+    string Name,
+    string? Notes,
+    IReadOnlyList<string> Tags);
+
 public sealed record CampaignCalendarUpdateRequest(int WeekLength, IReadOnlyList<CalendarMonthDto> Months);
 
 public sealed record CampaignCurrencyUpdateRequest(
