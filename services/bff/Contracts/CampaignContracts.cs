@@ -40,6 +40,8 @@ public sealed record CampaignDetailsDto(
     Guid CreatedByUserId,
     DateTimeOffset CreatedAt);
 
+public sealed record CampaignPlaceDto(Guid PlaceId, Guid CampaignId, string Name, string Type, string? Notes);
+
 public sealed record CampaignCalendarUpdateRequest(int WeekLength, IReadOnlyList<CalendarMonthDto> Months);
 
 public sealed record CampaignCurrencyUpdateRequest(

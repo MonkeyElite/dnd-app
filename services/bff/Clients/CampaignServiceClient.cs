@@ -50,6 +50,17 @@ public sealed class CampaignServiceClient(HttpClient httpClient, ILogger<Campaig
             content: null,
             cancellationToken);
 
+    public Task<ForwardedJsonResponse> ForwardGetPlacesAsync(
+        Guid campaignId,
+        string? authorizationHeader,
+        CancellationToken cancellationToken = default)
+        => SendAsync(
+            HttpMethod.Get,
+            $"/campaigns/{campaignId}/places",
+            authorizationHeader,
+            content: null,
+            cancellationToken);
+
     public Task<ForwardedJsonResponse> ForwardUpdateCurrencySettingsAsync(
         Guid campaignId,
         CampaignCurrencyUpdateRequest request,
