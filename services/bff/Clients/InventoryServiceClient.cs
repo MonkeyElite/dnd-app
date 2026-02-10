@@ -73,6 +73,74 @@ public sealed class InventoryServiceClient(HttpClient httpClient, ILogger<Invent
         return SendAsync(HttpMethod.Get, relativePath, authorizationHeader, content: null, cancellationToken);
     }
 
+    public Task<ForwardedJsonResponse> ForwardGetLotsAsync(
+        Guid campaignId,
+        Guid? itemId,
+        Guid? storageLocationId,
+        string? authorizationHeader,
+        CancellationToken cancellationToken = default)
+    {
+        var queryParts = new List<string>();
+
+        if (itemId.HasValue)
+        {
+            queryParts.Add($"itemId={Uri.EscapeDataString(itemId.Value.ToString())}");
+        }
+
+        if (storageLocationId.HasValue)
+        {
+            queryParts.Add($"storageLocationId={Uri.EscapeDataString(storageLocationId.Value.ToString())}");
+        }
+
+        var relativePath = $"/campaigns/{campaignId}/inventory/lots";
+        if (queryParts.Count > 0)
+        {
+            relativePath += $"?{string.Join("&", queryParts)}";
+        }
+
+        return SendAsync(HttpMethod.Get, relativePath, authorizationHeader, content: null, cancellationToken);
+    }
+
+    public Task<ForwardedJsonResponse> ForwardGetAdjustmentsAsync(
+        Guid campaignId,
+        int? fromWorldDay,
+        int? toWorldDay,
+        Guid? itemId,
+        Guid? storageLocationId,
+        string? authorizationHeader,
+        CancellationToken cancellationToken = default)
+    {
+        var queryParts = new List<string>();
+
+        if (fromWorldDay.HasValue)
+        {
+            queryParts.Add($"fromWorldDay={Uri.EscapeDataString(fromWorldDay.Value.ToString())}");
+        }
+
+        if (toWorldDay.HasValue)
+        {
+            queryParts.Add($"toWorldDay={Uri.EscapeDataString(toWorldDay.Value.ToString())}");
+        }
+
+        if (itemId.HasValue)
+        {
+            queryParts.Add($"itemId={Uri.EscapeDataString(itemId.Value.ToString())}");
+        }
+
+        if (storageLocationId.HasValue)
+        {
+            queryParts.Add($"storageLocationId={Uri.EscapeDataString(storageLocationId.Value.ToString())}");
+        }
+
+        var relativePath = $"/campaigns/{campaignId}/inventory/adjustments";
+        if (queryParts.Count > 0)
+        {
+            relativePath += $"?{string.Join("&", queryParts)}";
+        }
+
+        return SendAsync(HttpMethod.Get, relativePath, authorizationHeader, content: null, cancellationToken);
+    }
+
     private Task<ForwardedJsonResponse> SendPostAsJsonAsync<TRequest>(
         string relativePath,
         TRequest payload,

@@ -9,6 +9,8 @@ public sealed record CreateAssetUploadActionRequest(
 
 public sealed record FinalizeAssetUploadActionRequest(Guid CampaignId, string? Sha256, long? SizeBytes);
 
+public sealed record ConfirmMediaUploadActionRequest(Guid CampaignId, Guid AssetId, string? Sha256, long? SizeBytes);
+
 public sealed record MediaCreateAssetUploadRequest(
     string Purpose,
     string FileName,

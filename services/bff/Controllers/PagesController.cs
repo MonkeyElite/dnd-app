@@ -12,7 +12,8 @@ namespace DndApp.Bff.Controllers;
 [Route("api/v1/pages")]
 public sealed class PagesController(
     CampaignServiceClient campaignServiceClient,
-    IdentityServiceClient identityServiceClient) : ControllerBase
+    IdentityServiceClient identityServiceClient,
+    SalesServiceClient salesServiceClient) : ControllerBase
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
@@ -181,6 +182,212 @@ public sealed class PagesController(
         }
 
         return Ok(new CampaignSettingsPageResponse(campaignId, membership.Role, calendar, currency));
+    }
+
+    [HttpGet("campaign/{campaignId:guid}/home")]
+    public async Task<IActionResult> GetCampaignHomeAsync(Guid campaignId, CancellationToken cancellationToken)
+    {
+        if (campaignId == Guid.Empty)
+        {
+            return BadRequest(new ErrorResponse("campaignId is required."));
+        }
+
+        var authorizationHeader = Request.Headers.Authorization.ToString();
+
+        var membershipTask = identityServiceClient.ForwardGetMyCampaignMembershipForCampaignAsync(
+            campaignId,
+            authorizationHeader,
+            cancellationToken);
+        var campaignTask = campaignServiceClient.ForwardGetCampaignAsync(campaignId, authorizationHeader, cancellationToken);
+        var calendarTask = campaignServiceClient.ForwardGetCalendarSettingsAsync(campaignId, authorizationHeader, cancellationToken);
+        var currencyTask = campaignServiceClient.ForwardGetCurrencySettingsAsync(campaignId, authorizationHeader, cancellationToken);
+        var salesTask = salesServiceClient.ForwardGetSalesAsync(
+            campaignId,
+            fromWorldDay: null,
+            toWorldDay: null,
+            customerId: null,
+            authorizationHeader,
+            cancellationToken);
+
+        await Task.WhenAll(membershipTask, campaignTask, calendarTask, currencyTask, salesTask);
+
+        if (!IsSuccessStatusCode(membershipTask.Result.StatusCode))
+        {
+            return ToForwardedResult(membershipTask.Result);
+        }
+
+        if (!IsSuccessStatusCode(campaignTask.Result.StatusCode))
+        {
+            return ToForwardedResult(campaignTask.Result);
+        }
+
+        if (!IsSuccessStatusCode(calendarTask.Result.StatusCode))
+        {
+            return ToForwardedResult(calendarTask.Result);
+        }
+
+        if (!IsSuccessStatusCode(currencyTask.Result.StatusCode))
+        {
+            return ToForwardedResult(currencyTask.Result);
+        }
+
+        if (!IsSuccessStatusCode(salesTask.Result.StatusCode))
+        {
+            return ToForwardedResult(salesTask.Result);
+        }
+
+        var membership = DeserializeBody<IdentityCampaignMemberMeDto>(membershipTask.Result.Body);
+        if (membership is null)
+        {
+            return StatusCode(
+                StatusCodes.Status502BadGateway,
+                new ErrorResponse("Identity service returned invalid JSON."));
+        }
+
+        var campaign = DeserializeBody<CampaignDetailsDto>(campaignTask.Result.Body);
+        if (campaign is null)
+        {
+            return StatusCode(
+                StatusCodes.Status502BadGateway,
+                new ErrorResponse("Campaign service returned invalid campaign JSON."));
+        }
+
+        var calendar = DeserializeBody<CalendarConfigDto>(calendarTask.Result.Body);
+        if (calendar is null)
+        {
+            return StatusCode(
+                StatusCodes.Status502BadGateway,
+                new ErrorResponse("Campaign service returned invalid calendar JSON."));
+        }
+
+        var currency = DeserializeBody<CurrencyConfigDto>(currencyTask.Result.Body);
+        if (currency is null)
+        {
+            return StatusCode(
+                StatusCodes.Status502BadGateway,
+                new ErrorResponse("Campaign service returned invalid currency JSON."));
+        }
+
+        var sales = DeserializeBody<List<SalesListItemDto>>(salesTask.Result.Body) ?? [];
+        var currentWorldDay = sales.Count == 0
+            ? 0
+            : sales.Max(x => x.SoldWorldDay);
+
+        return Ok(new CampaignHomePageResponse(
+            campaign.CampaignId,
+            campaign.Name,
+            campaign.Description,
+            membership.Role,
+            currentWorldDay,
+            calendar,
+            currency));
+    }
+
+    [HttpGet("campaign/{campaignId:guid}/settings")]
+    public async Task<IActionResult> GetCampaignSettingsDetailsAsync(Guid campaignId, CancellationToken cancellationToken)
+    {
+        if (campaignId == Guid.Empty)
+        {
+            return BadRequest(new ErrorResponse("campaignId is required."));
+        }
+
+        var authorizationHeader = Request.Headers.Authorization.ToString();
+
+        var membershipTask = identityServiceClient.ForwardGetMyCampaignMembershipForCampaignAsync(
+            campaignId,
+            authorizationHeader,
+            cancellationToken);
+        var campaignTask = campaignServiceClient.ForwardGetCampaignAsync(campaignId, authorizationHeader, cancellationToken);
+        var calendarTask = campaignServiceClient.ForwardGetCalendarSettingsAsync(campaignId, authorizationHeader, cancellationToken);
+        var currencyTask = campaignServiceClient.ForwardGetCurrencySettingsAsync(campaignId, authorizationHeader, cancellationToken);
+        var membersTask = identityServiceClient.ForwardGetCampaignMembersAsync(campaignId, authorizationHeader, cancellationToken);
+
+        await Task.WhenAll(membershipTask, campaignTask, calendarTask, currencyTask, membersTask);
+
+        if (!IsSuccessStatusCode(membershipTask.Result.StatusCode))
+        {
+            return ToForwardedResult(membershipTask.Result);
+        }
+
+        if (!IsSuccessStatusCode(campaignTask.Result.StatusCode))
+        {
+            return ToForwardedResult(campaignTask.Result);
+        }
+
+        if (!IsSuccessStatusCode(calendarTask.Result.StatusCode))
+        {
+            return ToForwardedResult(calendarTask.Result);
+        }
+
+        if (!IsSuccessStatusCode(currencyTask.Result.StatusCode))
+        {
+            return ToForwardedResult(currencyTask.Result);
+        }
+
+        if (!IsSuccessStatusCode(membersTask.Result.StatusCode))
+        {
+            return ToForwardedResult(membersTask.Result);
+        }
+
+        var membership = DeserializeBody<IdentityCampaignMemberMeDto>(membershipTask.Result.Body);
+        if (membership is null)
+        {
+            return StatusCode(
+                StatusCodes.Status502BadGateway,
+                new ErrorResponse("Identity service returned invalid membership JSON."));
+        }
+
+        var campaign = DeserializeBody<CampaignDetailsDto>(campaignTask.Result.Body);
+        if (campaign is null)
+        {
+            return StatusCode(
+                StatusCodes.Status502BadGateway,
+                new ErrorResponse("Campaign service returned invalid campaign JSON."));
+        }
+
+        var calendar = DeserializeBody<CalendarConfigDto>(calendarTask.Result.Body);
+        if (calendar is null)
+        {
+            return StatusCode(
+                StatusCodes.Status502BadGateway,
+                new ErrorResponse("Campaign service returned invalid calendar JSON."));
+        }
+
+        var currency = DeserializeBody<CurrencyConfigDto>(currencyTask.Result.Body);
+        if (currency is null)
+        {
+            return StatusCode(
+                StatusCodes.Status502BadGateway,
+                new ErrorResponse("Campaign service returned invalid currency JSON."));
+        }
+
+        var members = DeserializeBody<List<IdentityCampaignMemberDto>>(membersTask.Result.Body);
+        if (members is null)
+        {
+            return StatusCode(
+                StatusCodes.Status502BadGateway,
+                new ErrorResponse("Identity service returned invalid members JSON."));
+        }
+
+        var sortedMembers = members
+            .OrderBy(x => x.DisplayName, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(x => x.Username, StringComparer.OrdinalIgnoreCase)
+            .Select(x => new CampaignSettingsMemberDto(
+                x.UserId,
+                x.Username,
+                x.DisplayName,
+                x.Role,
+                x.IsPlatformAdmin))
+            .ToList();
+
+        return Ok(new CampaignSettingsDetailsPageResponse(
+            campaign.CampaignId,
+            campaign.Name,
+            campaign.Description,
+            membership.Role,
+            calendar,
+            currency,
+            sortedMembers));
     }
 
     private bool IsPlatformAdmin()

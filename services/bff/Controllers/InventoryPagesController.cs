@@ -250,6 +250,280 @@ public sealed class InventoryPagesController(
         return Ok(new InventoryPageResponse(campaignId, currency.CurrencyCode, filters, sortedRows));
     }
 
+    [HttpGet("campaign/{campaignId:guid}/inventory/summary")]
+    public Task<IActionResult> GetCampaignInventorySummaryPageAsync(
+        Guid campaignId,
+        [FromQuery] Guid? placeId,
+        [FromQuery] Guid? storageLocationId,
+        [FromQuery] string? search,
+        CancellationToken cancellationToken)
+        => GetInventoryPageAsync(campaignId, placeId, storageLocationId, search, cancellationToken);
+
+    [HttpGet("campaign/{campaignId:guid}/inventory/locations")]
+    public async Task<IActionResult> GetCampaignInventoryLocationsPageAsync(
+        Guid campaignId,
+        CancellationToken cancellationToken)
+    {
+        var permissionResult = await RequireCampaignRead(campaignId, cancellationToken);
+        if (permissionResult is not null)
+        {
+            return permissionResult;
+        }
+
+        var authorizationHeader = Request.Headers.Authorization.ToString();
+        var placesTask = campaignServiceClient.ForwardGetPlacesAsync(campaignId, authorizationHeader, cancellationToken);
+        var storageLocationsTask = inventoryServiceClient.ForwardGetStorageLocationsAsync(
+            campaignId,
+            placeId: null,
+            authorizationHeader,
+            cancellationToken);
+        var summaryTask = inventoryServiceClient.ForwardGetSummaryAsync(
+            campaignId,
+            placeId: null,
+            storageLocationId: null,
+            authorizationHeader,
+            cancellationToken);
+
+        await Task.WhenAll(placesTask, storageLocationsTask, summaryTask);
+
+        if (!IsSuccessStatusCode(placesTask.Result.StatusCode))
+        {
+            return ToForwardedResult(placesTask.Result);
+        }
+
+        if (!IsSuccessStatusCode(storageLocationsTask.Result.StatusCode))
+        {
+            return ToForwardedResult(storageLocationsTask.Result);
+        }
+
+        if (!IsSuccessStatusCode(summaryTask.Result.StatusCode))
+        {
+            return ToForwardedResult(summaryTask.Result);
+        }
+
+        var places = DeserializeBody<List<CampaignPlaceDto>>(placesTask.Result.Body);
+        if (places is null)
+        {
+            return StatusCode(
+                StatusCodes.Status502BadGateway,
+                new ErrorResponse("Campaign service returned invalid places JSON."));
+        }
+
+        var storageLocations = DeserializeBody<List<InventoryStorageLocationDto>>(storageLocationsTask.Result.Body);
+        if (storageLocations is null)
+        {
+            return StatusCode(
+                StatusCodes.Status502BadGateway,
+                new ErrorResponse("Inventory service returned invalid storage locations JSON."));
+        }
+
+        var summary = DeserializeBody<InventorySummaryResponse>(summaryTask.Result.Body);
+        if (summary is null)
+        {
+            return StatusCode(
+                StatusCodes.Status502BadGateway,
+                new ErrorResponse("Inventory service returned invalid summary JSON."));
+        }
+
+        var placeNamesById = places.ToDictionary(x => x.PlaceId, x => x.Name);
+        var totalQuantityByLocation = summary.Rows
+            .GroupBy(x => x.StorageLocationId)
+            .ToDictionary(
+                x => x.Key,
+                x => x.Sum(y => y.OnHandQuantity));
+
+        var locations = storageLocations
+            .OrderBy(x => x.Name, StringComparer.OrdinalIgnoreCase)
+            .Select(x => new InventoryLocationsPageRowDto(
+                x.StorageLocationId,
+                x.PlaceId,
+                x.PlaceId.HasValue ? placeNamesById.GetValueOrDefault(x.PlaceId.Value) : null,
+                x.Name,
+                x.Type,
+                x.Code,
+                totalQuantityByLocation.GetValueOrDefault(x.StorageLocationId)))
+            .ToList();
+
+        return Ok(new InventoryLocationsPageResponse(campaignId, locations));
+    }
+
+    [HttpGet("campaign/{campaignId:guid}/inventory/location/{locationId:guid}")]
+    public async Task<IActionResult> GetCampaignInventoryLocationDetailPageAsync(
+        Guid campaignId,
+        Guid locationId,
+        CancellationToken cancellationToken)
+    {
+        if (locationId == Guid.Empty)
+        {
+            return BadRequest(new ErrorResponse("locationId is required."));
+        }
+
+        var permissionResult = await RequireCampaignRead(campaignId, cancellationToken);
+        if (permissionResult is not null)
+        {
+            return permissionResult;
+        }
+
+        var authorizationHeader = Request.Headers.Authorization.ToString();
+
+        var currencyTask = campaignServiceClient.ForwardGetCurrencySettingsAsync(campaignId, authorizationHeader, cancellationToken);
+        var placesTask = campaignServiceClient.ForwardGetPlacesAsync(campaignId, authorizationHeader, cancellationToken);
+        var storageLocationsTask = inventoryServiceClient.ForwardGetStorageLocationsAsync(
+            campaignId,
+            placeId: null,
+            authorizationHeader,
+            cancellationToken);
+        var lotsTask = inventoryServiceClient.ForwardGetLotsAsync(
+            campaignId,
+            itemId: null,
+            storageLocationId: locationId,
+            authorizationHeader,
+            cancellationToken);
+        var adjustmentsTask = inventoryServiceClient.ForwardGetAdjustmentsAsync(
+            campaignId,
+            fromWorldDay: null,
+            toWorldDay: null,
+            itemId: null,
+            storageLocationId: locationId,
+            authorizationHeader,
+            cancellationToken);
+        var itemsTask = catalogServiceClient.ForwardGetItemsAsync(
+            campaignId,
+            search: null,
+            categoryId: null,
+            archived: CatalogArchivedItemsFilter.IncludeArchived.ToString(),
+            authorizationHeader,
+            cancellationToken);
+
+        await Task.WhenAll(currencyTask, placesTask, storageLocationsTask, lotsTask, adjustmentsTask, itemsTask);
+
+        if (!IsSuccessStatusCode(currencyTask.Result.StatusCode))
+        {
+            return ToForwardedResult(currencyTask.Result);
+        }
+
+        if (!IsSuccessStatusCode(placesTask.Result.StatusCode))
+        {
+            return ToForwardedResult(placesTask.Result);
+        }
+
+        if (!IsSuccessStatusCode(storageLocationsTask.Result.StatusCode))
+        {
+            return ToForwardedResult(storageLocationsTask.Result);
+        }
+
+        if (!IsSuccessStatusCode(lotsTask.Result.StatusCode))
+        {
+            return ToForwardedResult(lotsTask.Result);
+        }
+
+        if (!IsSuccessStatusCode(adjustmentsTask.Result.StatusCode))
+        {
+            return ToForwardedResult(adjustmentsTask.Result);
+        }
+
+        if (!IsSuccessStatusCode(itemsTask.Result.StatusCode))
+        {
+            return ToForwardedResult(itemsTask.Result);
+        }
+
+        var currency = DeserializeBody<CurrencyConfigDto>(currencyTask.Result.Body);
+        if (currency is null)
+        {
+            return StatusCode(
+                StatusCodes.Status502BadGateway,
+                new ErrorResponse("Campaign service returned invalid currency JSON."));
+        }
+
+        var places = DeserializeBody<List<CampaignPlaceDto>>(placesTask.Result.Body);
+        if (places is null)
+        {
+            return StatusCode(
+                StatusCodes.Status502BadGateway,
+                new ErrorResponse("Campaign service returned invalid places JSON."));
+        }
+
+        var storageLocations = DeserializeBody<List<InventoryStorageLocationDto>>(storageLocationsTask.Result.Body);
+        if (storageLocations is null)
+        {
+            return StatusCode(
+                StatusCodes.Status502BadGateway,
+                new ErrorResponse("Inventory service returned invalid storage locations JSON."));
+        }
+
+        var lots = DeserializeBody<List<InventoryLotDto>>(lotsTask.Result.Body);
+        if (lots is null)
+        {
+            return StatusCode(
+                StatusCodes.Status502BadGateway,
+                new ErrorResponse("Inventory service returned invalid lots JSON."));
+        }
+
+        var adjustments = DeserializeBody<List<InventoryAdjustmentDto>>(adjustmentsTask.Result.Body);
+        if (adjustments is null)
+        {
+            return StatusCode(
+                StatusCodes.Status502BadGateway,
+                new ErrorResponse("Inventory service returned invalid adjustments JSON."));
+        }
+
+        var items = DeserializeBody<List<CatalogItemDto>>(itemsTask.Result.Body);
+        if (items is null)
+        {
+            return StatusCode(
+                StatusCodes.Status502BadGateway,
+                new ErrorResponse("Catalog service returned invalid items JSON."));
+        }
+
+        var location = storageLocations.SingleOrDefault(x => x.StorageLocationId == locationId);
+        if (location is null)
+        {
+            return NotFound(new ErrorResponse("Storage location not found."));
+        }
+
+        var placeNamesById = places.ToDictionary(x => x.PlaceId, x => x.Name);
+        var itemNamesById = items.ToDictionary(x => x.ItemId, x => x.Name);
+
+        var lotRows = lots
+            .Select(x => new InventoryLocationDetailLotPageRowDto(
+                x.LotId,
+                x.ItemId,
+                itemNamesById.GetValueOrDefault(x.ItemId, string.Empty),
+                x.QuantityOnHand,
+                x.UnitCostMinor,
+                x.AcquiredWorldDay,
+                x.Source,
+                x.Notes))
+            .ToList();
+
+        var adjustmentRows = adjustments
+            .Select(x => new InventoryLocationDetailAdjustmentPageRowDto(
+                x.AdjustmentId,
+                x.ItemId,
+                itemNamesById.GetValueOrDefault(x.ItemId, string.Empty),
+                x.LotId,
+                x.DeltaQuantity,
+                x.Reason,
+                x.WorldDay,
+                x.Notes,
+                x.ReferenceType,
+                x.ReferenceId,
+                x.CreatedAt))
+            .ToList();
+
+        return Ok(new InventoryLocationDetailPageResponse(
+            campaignId,
+            location.StorageLocationId,
+            location.Name,
+            location.Code,
+            location.Type,
+            location.PlaceId,
+            location.PlaceId.HasValue ? placeNamesById.GetValueOrDefault(location.PlaceId.Value) : null,
+            currency.CurrencyCode,
+            lotRows,
+            adjustmentRows));
+    }
+
     private static bool MatchesSearch(
         string? search,
         string itemName,

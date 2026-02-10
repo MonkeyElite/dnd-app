@@ -62,3 +62,36 @@ public sealed record IdentityUpsertCampaignMembershipRequest(Guid CampaignId, Gu
 public sealed record IdentityCampaignMembershipDto(Guid CampaignId, string Role);
 
 public sealed record IdentityCampaignMemberMeDto(Guid CampaignId, Guid UserId, string Role);
+
+public sealed record IdentityCampaignMemberDto(
+    Guid CampaignId,
+    Guid UserId,
+    string Username,
+    string DisplayName,
+    string Role,
+    bool IsPlatformAdmin);
+
+public sealed record CampaignHomePageResponse(
+    Guid CampaignId,
+    string CampaignName,
+    string? CampaignDescription,
+    string MyRole,
+    int CurrentWorldDay,
+    CalendarConfigDto Calendar,
+    CurrencyConfigDto Currency);
+
+public sealed record CampaignSettingsMemberDto(
+    Guid UserId,
+    string Username,
+    string DisplayName,
+    string Role,
+    bool IsPlatformAdmin);
+
+public sealed record CampaignSettingsDetailsPageResponse(
+    Guid CampaignId,
+    string CampaignName,
+    string? CampaignDescription,
+    string MyRole,
+    CalendarConfigDto Calendar,
+    CurrencyConfigDto Currency,
+    IReadOnlyList<CampaignSettingsMemberDto> Members);

@@ -44,7 +44,7 @@ public sealed class InventorySummaryController(InventoryDbContext dbContext) : I
             locationQuery = locationQuery.Where(x => x.StorageLocationId == storageLocationId.Value);
         }
 
-        var summaryRows = await dbContext.InventoryLots
+        var summaryRowsRaw = await dbContext.InventoryLots
             .AsNoTracking()
             .Where(x => x.CampaignId == campaignId && x.QuantityOnHand > 0)
             .Join(
@@ -58,13 +58,22 @@ public sealed class InventorySummaryController(InventoryDbContext dbContext) : I
                     lot.QuantityOnHand
                 })
             .GroupBy(x => new { x.ItemId, x.StorageLocationId })
-            .Select(x => new InventorySummaryRowDto(
+            .Select(x => new
+            {
                 x.Key.ItemId,
                 x.Key.StorageLocationId,
-                NormalizeQuantity(x.Sum(y => y.QuantityOnHand))))
+                OnHandQuantity = x.Sum(y => y.QuantityOnHand)
+            })
             .OrderBy(x => x.ItemId)
             .ThenBy(x => x.StorageLocationId)
             .ToListAsync(cancellationToken);
+
+        var summaryRows = summaryRowsRaw
+            .Select(x => new InventorySummaryRowDto(
+                x.ItemId,
+                x.StorageLocationId,
+                NormalizeQuantity(x.OnHandQuantity)))
+            .ToList();
 
         _ = search;
         return Ok(new InventorySummaryResponse(summaryRows));

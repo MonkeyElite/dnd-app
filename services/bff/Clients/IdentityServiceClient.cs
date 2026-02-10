@@ -46,6 +46,17 @@ public sealed class IdentityServiceClient(HttpClient httpClient, ILogger<Identit
             content: null,
             cancellationToken);
 
+    public Task<ForwardedJsonResponse> ForwardGetCampaignMembersAsync(
+        Guid campaignId,
+        string? authorizationHeader,
+        CancellationToken cancellationToken = default)
+        => SendAsync(
+            HttpMethod.Get,
+            $"/campaigns/{campaignId}/members",
+            authorizationHeader,
+            content: null,
+            cancellationToken);
+
     private Task<ForwardedJsonResponse> SendPostAsJsonAsync<TRequest>(
         string relativePath,
         TRequest payload,

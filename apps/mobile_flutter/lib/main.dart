@@ -1,34 +1,8 @@
-﻿import 'package:flutter/material.dart';
+import 'package:dnd_app/app/app.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 void main() {
-  runApp(const DndApp());
-}
-
-class DndApp extends StatelessWidget {
-  const DndApp({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'D&D App',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.red),
-      ),
-      home: const HomePage(),
-    );
-  }
-}
-
-class HomePage extends StatelessWidget {
-  const HomePage({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('D&D App')),
-      body: const Center(
-        child: Text('D&D App'),
-      ),
-    );
-  }
+  WidgetsFlutterBinding.ensureInitialized();
+  runApp(const ProviderScope(child: DndMobileApp()));
 }

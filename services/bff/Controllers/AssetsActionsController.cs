@@ -37,6 +37,12 @@ public sealed class AssetsActionsController(
         return ToForwardedResult(response);
     }
 
+    [HttpPost("media/request-upload")]
+    public Task<IActionResult> RequestMediaUploadAsync(
+        [FromBody] CreateAssetUploadActionRequest request,
+        CancellationToken cancellationToken)
+        => CreateUploadAsync(request, cancellationToken);
+
     [HttpPost("assets/{assetId:guid}/finalize")]
     public async Task<IActionResult> FinalizeUploadAsync(
         Guid assetId,
@@ -63,6 +69,22 @@ public sealed class AssetsActionsController(
             cancellationToken);
 
         return ToForwardedResult(response);
+    }
+
+    [HttpPost("media/confirm-upload")]
+    public Task<IActionResult> ConfirmMediaUploadAsync(
+        [FromBody] ConfirmMediaUploadActionRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (request.AssetId == Guid.Empty)
+        {
+            return Task.FromResult<IActionResult>(BadRequest(new ErrorResponse("assetId is required.")));
+        }
+
+        return FinalizeUploadAsync(
+            request.AssetId,
+            new FinalizeAssetUploadActionRequest(request.CampaignId, request.Sha256, request.SizeBytes),
+            cancellationToken);
     }
 
     [HttpGet("assets/{assetId:guid}/download-url")]

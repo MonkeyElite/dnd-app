@@ -12,6 +12,7 @@ public sealed class SalesPagesController(
     CampaignServiceClient campaignServiceClient,
     SalesServiceClient salesServiceClient,
     InventoryServiceClient inventoryServiceClient,
+    CatalogServiceClient catalogServiceClient,
     IdentityServiceClient identityServiceClient) : CampaignAuthorizationControllerBase(identityServiceClient)
 {
     [HttpGet("sales")]
@@ -105,6 +106,15 @@ public sealed class SalesPagesController(
         return Ok(new SalesPageResponse(campaignId, currency.CurrencyCode, filters, rows));
     }
 
+    [HttpGet("campaign/{campaignId:guid}/sales")]
+    public Task<IActionResult> GetCampaignSalesPageAsync(
+        Guid campaignId,
+        [FromQuery] int? fromWorldDay,
+        [FromQuery] int? toWorldDay,
+        [FromQuery] Guid? customerId,
+        CancellationToken cancellationToken)
+        => GetSalesPageAsync(campaignId, fromWorldDay, toWorldDay, customerId, cancellationToken);
+
     [HttpGet("sale")]
     public async Task<IActionResult> GetSalePageAsync(
         [FromQuery] Guid campaignId,
@@ -197,5 +207,83 @@ public sealed class SalesPagesController(
                 .ToList());
 
         return Ok(new SalePageResponse(campaignId, currency.CurrencyCode, sale, filters));
+    }
+
+    [HttpGet("campaign/{campaignId:guid}/sales/draft/{draftId:guid}")]
+    public async Task<IActionResult> GetCampaignSalesDraftPageAsync(
+        Guid campaignId,
+        Guid draftId,
+        CancellationToken cancellationToken)
+    {
+        var saleResult = await GetSalePageAsync(campaignId, draftId, cancellationToken);
+        if (saleResult is not OkObjectResult okResult
+            || okResult.Value is not SalePageResponse salePage)
+        {
+            return saleResult;
+        }
+
+        if (!salePage.Sale.Status.Equals("Draft", StringComparison.OrdinalIgnoreCase))
+        {
+            return Conflict(new ErrorResponse("saleId is not a draft sale."));
+        }
+
+        var authorizationHeader = Request.Headers.Authorization.ToString();
+        var itemsResponse = await catalogServiceClient.ForwardGetItemsAsync(
+            campaignId,
+            search: null,
+            categoryId: null,
+            archived: CatalogArchivedItemsFilter.ActiveOnly.ToString(),
+            authorizationHeader,
+            cancellationToken);
+
+        if (!IsSuccessStatusCode(itemsResponse.StatusCode))
+        {
+            return ToForwardedResult(itemsResponse);
+        }
+
+        var items = DeserializeBody<List<CatalogItemDto>>(itemsResponse.Body);
+        if (items is null)
+        {
+            return StatusCode(
+                StatusCodes.Status502BadGateway,
+                new ErrorResponse("Catalog service returned invalid items JSON."));
+        }
+
+        var itemOptions = items
+            .OrderBy(x => x.Name, StringComparer.OrdinalIgnoreCase)
+            .Select(x => new SalesDraftItemOptionDto(
+                x.ItemId,
+                x.Name,
+                x.BaseValueMinor,
+                x.DefaultListPriceMinor,
+                x.IsArchived))
+            .ToList();
+
+        return Ok(new SalesDraftPageResponse(
+            campaignId,
+            salePage.CurrencyCode,
+            salePage.Sale,
+            salePage.Filters,
+            itemOptions));
+    }
+
+    [HttpGet("campaign/{campaignId:guid}/sales/{saleId:guid}")]
+    public async Task<IActionResult> GetCampaignSaleReceiptPageAsync(
+        Guid campaignId,
+        Guid saleId,
+        CancellationToken cancellationToken)
+    {
+        var saleResult = await GetSalePageAsync(campaignId, saleId, cancellationToken);
+        if (saleResult is not OkObjectResult okResult
+            || okResult.Value is not SalePageResponse salePage)
+        {
+            return saleResult;
+        }
+
+        return Ok(new SalesReceiptPageResponse(
+            campaignId,
+            salePage.CurrencyCode,
+            salePage.Sale,
+            salePage.Filters));
     }
 }

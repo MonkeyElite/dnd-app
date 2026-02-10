@@ -120,6 +120,48 @@ public sealed record CompleteSaleActionRequest(Guid CampaignId);
 
 public sealed record VoidSaleActionRequest(Guid CampaignId, string Reason);
 
+public sealed record SalesDraftCreateActionRequest(
+    Guid CampaignId,
+    int SoldWorldDay,
+    Guid StorageLocationId,
+    Guid? CustomerId,
+    string? Notes);
+
+public sealed record SalesDraftCreateActionResponse(Guid DraftId);
+
+public sealed record SalesDraftAddLineActionRequest(
+    Guid CampaignId,
+    Guid DraftId,
+    Guid ItemId,
+    decimal Quantity,
+    long? UnitSoldPriceMinor,
+    long? UnitTrueValueMinor,
+    long? DiscountMinor,
+    string? Notes);
+
+public sealed record SalesDraftUpdateLineActionRequest(
+    Guid CampaignId,
+    Guid DraftId,
+    Guid SaleLineId,
+    decimal Quantity,
+    long UnitSoldPriceMinor,
+    long? UnitTrueValueMinor,
+    long DiscountMinor,
+    string? Notes);
+
+public sealed record SalesDraftRemoveLineActionRequest(
+    Guid CampaignId,
+    Guid DraftId,
+    Guid SaleLineId);
+
+public sealed record SalesDraftCompleteActionRequest(
+    Guid CampaignId,
+    Guid DraftId);
+
+public sealed record SalesDraftMutationActionResponse(Guid DraftId, bool Updated);
+
+public sealed record SalesDraftCompleteActionResponse(Guid SaleId, string Status);
+
 public sealed record SalesPageFilterCustomerDto(Guid CustomerId, string Name);
 
 public sealed record SalesPageFiltersDto(IReadOnlyList<SalesPageFilterCustomerDto> Customers);
@@ -144,6 +186,26 @@ public sealed record SalePageFiltersDto(
     IReadOnlyList<SalePageFilterStorageLocationDto> StorageLocations);
 
 public sealed record SalePageResponse(
+    Guid CampaignId,
+    string CurrencyCode,
+    SalesDetailDto Sale,
+    SalePageFiltersDto Filters);
+
+public sealed record SalesDraftItemOptionDto(
+    Guid ItemId,
+    string Name,
+    long BaseValueMinor,
+    long? DefaultListPriceMinor,
+    bool IsArchived);
+
+public sealed record SalesDraftPageResponse(
+    Guid CampaignId,
+    string CurrencyCode,
+    SalesDetailDto Draft,
+    SalePageFiltersDto Filters,
+    IReadOnlyList<SalesDraftItemOptionDto> ItemOptions);
+
+public sealed record SalesReceiptPageResponse(
     Guid CampaignId,
     string CurrencyCode,
     SalesDetailDto Sale,

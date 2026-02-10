@@ -172,6 +172,48 @@ public sealed class CatalogPagesController(
         return Ok(response);
     }
 
+    [HttpGet("campaign/{campaignId:guid}/catalog")]
+    public Task<IActionResult> GetCampaignCatalogPageAsync(
+        Guid campaignId,
+        [FromQuery] string? search,
+        [FromQuery] Guid? categoryId,
+        [FromQuery] string? archived,
+        CancellationToken cancellationToken)
+        => GetCatalogPageAsync(campaignId, search, categoryId, archived, cancellationToken);
+
+    [HttpGet("campaign/{campaignId:guid}/catalog/item/{itemId:guid}")]
+    public async Task<IActionResult> GetCampaignCatalogItemPageAsync(
+        Guid campaignId,
+        Guid itemId,
+        CancellationToken cancellationToken)
+    {
+        if (itemId == Guid.Empty)
+        {
+            return BadRequest(new ErrorResponse("itemId is required."));
+        }
+
+        var catalogResult = await GetCatalogPageAsync(
+            campaignId,
+            search: null,
+            categoryId: null,
+            archived: CatalogArchivedItemsFilter.IncludeArchived.ToString(),
+            cancellationToken);
+
+        if (catalogResult is not OkObjectResult okResult
+            || okResult.Value is not CatalogPageResponse catalogPage)
+        {
+            return catalogResult;
+        }
+
+        var item = catalogPage.Items.FirstOrDefault(x => x.ItemId == itemId);
+        if (item is null)
+        {
+            return NotFound(new ErrorResponse("Item not found."));
+        }
+
+        return Ok(new CatalogItemPageResponse(campaignId, catalogPage.CurrencyCode, item));
+    }
+
     private static string? ValidateArchivedFilter(string? archived, out string? normalizedArchived)
     {
         if (string.IsNullOrWhiteSpace(archived))

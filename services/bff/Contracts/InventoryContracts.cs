@@ -134,3 +134,51 @@ public sealed record InventoryPageResponse(
     string CurrencyCode,
     InventoryPageFiltersDto Filters,
     IReadOnlyList<InventoryPageRowDto> Rows);
+
+public sealed record InventoryLocationsPageRowDto(
+    Guid StorageLocationId,
+    Guid? PlaceId,
+    string? PlaceName,
+    string Name,
+    string Type,
+    string? Code,
+    decimal TotalQuantity);
+
+public sealed record InventoryLocationsPageResponse(
+    Guid CampaignId,
+    IReadOnlyList<InventoryLocationsPageRowDto> Locations);
+
+public sealed record InventoryLocationDetailLotPageRowDto(
+    Guid LotId,
+    Guid ItemId,
+    string ItemName,
+    decimal QuantityOnHand,
+    long UnitCostMinor,
+    int AcquiredWorldDay,
+    string? Source,
+    string? Notes);
+
+public sealed record InventoryLocationDetailAdjustmentPageRowDto(
+    Guid AdjustmentId,
+    Guid ItemId,
+    string ItemName,
+    Guid? LotId,
+    decimal DeltaQuantity,
+    string Reason,
+    int WorldDay,
+    string? Notes,
+    string? ReferenceType,
+    Guid? ReferenceId,
+    DateTimeOffset CreatedAt);
+
+public sealed record InventoryLocationDetailPageResponse(
+    Guid CampaignId,
+    Guid StorageLocationId,
+    string StorageLocationName,
+    string? StorageLocationCode,
+    string StorageLocationType,
+    Guid? PlaceId,
+    string? PlaceName,
+    string CurrencyCode,
+    IReadOnlyList<InventoryLocationDetailLotPageRowDto> Lots,
+    IReadOnlyList<InventoryLocationDetailAdjustmentPageRowDto> Adjustments);

@@ -113,3 +113,8 @@ public sealed record CatalogPageResponse(
     string CurrencyCode,
     CatalogPageFiltersDto Filters,
     IReadOnlyList<CatalogPageItemDto> Items);
+
+public sealed record CatalogItemPageResponse(
+    Guid CampaignId,
+    string CurrencyCode,
+    CatalogPageItemDto Item);

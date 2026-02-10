@@ -123,6 +123,83 @@ public sealed class CampaignMembershipsController(IdentityDbContext dbContext) :
         return Ok(new MyCampaignMemberRoleResponse(membership.CampaignId, membership.UserId, role));
     }
 
+    [HttpGet("campaigns/{campaignId:guid}/members")]
+    public async Task<IActionResult> GetCampaignMembersAsync(Guid campaignId, CancellationToken cancellationToken)
+    {
+        if (!TryGetRequestingUserId(out var requestingUserId))
+        {
+            return Unauthorized();
+        }
+
+        if (!await CanReadCampaignMembersAsync(campaignId, requestingUserId, cancellationToken))
+        {
+            return Forbid();
+        }
+
+        var members = await dbContext.CampaignMemberships
+            .AsNoTracking()
+            .Where(x => x.CampaignId == campaignId)
+            .Join(
+                dbContext.Users.AsNoTracking(),
+                membership => membership.UserId,
+                user => user.UserId,
+                (membership, user) => new
+                {
+                    membership.CampaignId,
+                    membership.UserId,
+                    membership.Role,
+                    user.Username,
+                    user.DisplayName,
+                    user.IsPlatformAdmin
+                })
+            .OrderBy(x => x.DisplayName)
+            .ThenBy(x => x.Username)
+            .ToListAsync(cancellationToken);
+
+        var response = members
+            .Select(member =>
+            {
+                var role = RoleRules.TryNormalizeRole(member.Role, out var normalizedRole)
+                    ? normalizedRole
+                    : member.Role;
+
+                return new CampaignMemberSummaryResponse(
+                    member.CampaignId,
+                    member.UserId,
+                    member.Username,
+                    member.DisplayName,
+                    role,
+                    member.IsPlatformAdmin);
+            })
+            .ToList();
+
+        return Ok(response);
+    }
+
+    private async Task<bool> CanReadCampaignMembersAsync(
+        Guid campaignId,
+        Guid requestingUserId,
+        CancellationToken cancellationToken)
+    {
+        var isPlatformAdmin = await dbContext.Users
+            .AsNoTracking()
+            .Where(x => x.UserId == requestingUserId)
+            .Select(x => (bool?)x.IsPlatformAdmin)
+            .SingleOrDefaultAsync(cancellationToken);
+
+        if (isPlatformAdmin is true)
+        {
+            return true;
+        }
+
+        return await dbContext.CampaignMemberships
+            .AsNoTracking()
+            .AnyAsync(
+                x => x.CampaignId == campaignId
+                     && x.UserId == requestingUserId,
+                cancellationToken);
+    }
+
     private async Task<bool> CanManageCampaignMembershipsAsync(
         Guid campaignId,
         Guid requestingUserId,
