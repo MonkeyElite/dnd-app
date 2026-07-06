@@ -21,15 +21,6 @@ class AppScaffold extends StatelessWidget {
     final content = SafeArea(
       child: Stack(
         children: [
-          Positioned(
-            top: 6,
-            right: 8,
-            child: Icon(
-              Icons.shield_outlined,
-              color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.18),
-              size: 22,
-            ),
-          ),
           Positioned.fill(child: child),
         ],
       ),

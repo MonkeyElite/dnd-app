@@ -1,6 +1,9 @@
 import 'package:dnd_app/core/errors/app_exception.dart';
 import 'package:dnd_app/core/api/models/sales_models.dart';
+import 'package:dnd_app/core/auth/role_permissions.dart';
+import 'package:dnd_app/core/auth/session_controller.dart';
 import 'package:dnd_app/core/ui/ui.dart';
+import 'package:dnd_app/features/campaigns/campaign_providers.dart';
 import 'package:dnd_app/features/sales/sales_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -17,6 +20,10 @@ class SalesListPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final page = ref.watch(salesPageProvider(campaignId));
+    final homePage = ref.watch(campaignHomePageProvider(campaignId));
+    final session = ref.watch(sessionControllerProvider);
+    final canWrite = (session.user?.isPlatformAdmin ?? false) ||
+        isCampaignWriteRole(homePage.valueOrNull?.myRole);
 
     ref.listen<AsyncValue<void>>(salesDraftControllerProvider, (previous, next) {
       next.whenOrNull(
@@ -31,20 +38,28 @@ class SalesListPage extends ConsumerWidget {
       length: 3,
       child: AppScaffold(
         title: 'Sales',
-        floatingActionButton: FloatingActionButton.extended(
-          onPressed: () async {
-            try {
-              final draftId = await ref.read(salesDraftControllerProvider.notifier).createDraft(campaignId);
-              if (context.mounted) {
-                context.go('/campaign/$campaignId/sales/draft/$draftId');
-              }
-            } catch (_) {
-              // Errors are surfaced through provider listener.
-            }
-          },
-          icon: const Icon(Icons.add),
-          label: const Text('New Draft'),
-        ),
+        actions: [
+          IconButton(
+            onPressed: () => context.push('/campaign/${campaignId}/home'),
+            icon: const Icon(Icons.home_outlined),
+          ),
+        ],
+        floatingActionButton: canWrite
+            ? FloatingActionButton.extended(
+                onPressed: () async {
+                  try {
+                    final draftId = await ref.read(salesDraftControllerProvider.notifier).createDraft(campaignId);
+                    if (context.mounted) {
+                      context.push('/campaign/$campaignId/sales/draft/$draftId');
+                    }
+                  } catch (_) {
+                    // Errors are surfaced through provider listener.
+                  }
+                },
+                icon: const Icon(Icons.add),
+                label: const Text('New Draft'),
+              )
+            : null,
         child: AsyncPage(
           value: page,
           onRetry: () => ref.invalidate(salesPageProvider(campaignId)),
@@ -114,7 +129,7 @@ class _SalesTabList extends StatelessWidget {
             title: Text('${row.customerName ?? 'Walk-in'} • Day ${row.soldWorldDay}'),
             subtitle: Text('Total: ${row.totalMinor}'),
             trailing: Text(row.status),
-            onTap: () => context.go(
+            onTap: () => context.push(
               isDraft
                   ? '/campaign/$campaignId/sales/draft/${row.saleId}'
                   : '/campaign/$campaignId/sales/${row.saleId}',

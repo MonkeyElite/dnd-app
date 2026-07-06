@@ -24,8 +24,12 @@ class InventorySummaryPage extends ConsumerWidget {
       title: 'Inventory',
       actions: [
         IconButton(
-          onPressed: () => context.go('/campaign/$campaignId/inventory/locations'),
+          onPressed: () => context.push('/campaign/$campaignId/inventory/locations'),
           icon: const Icon(Icons.location_on_outlined),
+        ),
+        IconButton(
+          onPressed: () => context.push('/campaign/${campaignId}/home'),
+          icon: const Icon(Icons.home_outlined),
         ),
       ],
       child: AsyncPage(

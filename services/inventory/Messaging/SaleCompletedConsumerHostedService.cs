@@ -25,7 +25,22 @@ public sealed class SaleCompletedConsumerHostedService(
     {
         while (!stoppingToken.IsCancellationRequested)
         {
-            EnsureBrokerTopologyDeclared();
+            try
+            {
+                EnsureBrokerTopologyDeclared();
+            }
+            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+            {
+                break;
+            }
+            catch (Exception exception)
+            {
+                _logger.LogWarning(
+                    exception,
+                    "Inventory consumer could not connect to RabbitMQ. Retrying in 5s.");
+                await Task.Delay(TimeSpan.FromSeconds(5), stoppingToken);
+                continue;
+            }
 
             var delivery = _channel!.BasicGet(_options.InventoryQueue, autoAck: false);
             if (delivery is null)

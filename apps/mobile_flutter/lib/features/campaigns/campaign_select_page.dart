@@ -1,5 +1,7 @@
 import 'package:dnd_app/core/auth/session_controller.dart';
+import 'package:dnd_app/core/errors/app_exception.dart';
 import 'package:dnd_app/core/ui/ui.dart';
+import 'package:dnd_app/core/api/dio_provider.dart';
 import 'package:dnd_app/features/campaigns/campaign_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -11,6 +13,8 @@ class CampaignSelectPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final page = ref.watch(campaignsPageProvider(noArgs));
+    final session = ref.watch(sessionControllerProvider);
+    final isPlatformAdmin = session.user?.isPlatformAdmin ?? false;
 
     return AppScaffold(
       title: 'Campaigns',
@@ -19,12 +23,19 @@ class CampaignSelectPage extends ConsumerWidget {
           onPressed: () async {
             await ref.read(sessionControllerProvider.notifier).logout();
             if (context.mounted) {
-              context.go('/login');
+              context.push('/login');
             }
           },
           icon: const Icon(Icons.logout),
         ),
       ],
+      floatingActionButton: isPlatformAdmin
+          ? FloatingActionButton.extended(
+              onPressed: () => _createCampaign(context, ref),
+              icon: const Icon(Icons.add_circle_outline),
+              label: const Text('Create'),
+            )
+          : null,
       child: AsyncPage(
         value: page,
         onRetry: () => ref.invalidate(campaignsPageProvider(noArgs)),
@@ -46,7 +57,7 @@ class CampaignSelectPage extends ConsumerWidget {
                   onTap: () async {
                     await ref.read(sessionControllerProvider.notifier).selectCampaign(campaign.campaignId);
                     if (context.mounted) {
-                      context.go('/campaign/${campaign.campaignId}/home');
+                      context.push('/campaign/${campaign.campaignId}/home');
                     }
                   },
                 ),
@@ -56,5 +67,89 @@ class CampaignSelectPage extends ConsumerWidget {
         },
       ),
     );
+  }
+
+  Future<void> _createCampaign(BuildContext context, WidgetRef ref) async {
+    final nameController = TextEditingController();
+    final descriptionController = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+
+    final shouldSubmit = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Create Campaign'),
+          content: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                RoundedTextField(
+                  controller: nameController,
+                  label: 'Name',
+                  validator: (value) =>
+                      (value == null || value.trim().isEmpty) ? 'Name is required.' : null,
+                ),
+                const SizedBox(height: 8),
+                RoundedTextField(
+                  controller: descriptionController,
+                  label: 'Description',
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () {
+                if (!formKey.currentState!.validate()) {
+                  return;
+                }
+
+                Navigator.of(context).pop(true);
+              },
+              child: const Text('Create'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (shouldSubmit != true) {
+      return;
+    }
+
+    try {
+      final campaignId = await ref.read(bffApiProvider).createCampaign(
+            name: nameController.text.trim(),
+            description: descriptionController.text.trim().isEmpty
+                ? null
+                : descriptionController.text.trim(),
+          );
+
+      if (campaignId.isEmpty) {
+        throw const AppException(
+          type: AppExceptionType.unknown,
+          message: 'Campaign created, but response was missing campaignId.',
+        );
+      }
+
+      await ref.read(sessionControllerProvider.notifier).selectCampaign(campaignId);
+      ref.invalidate(campaignsPageProvider(noArgs));
+
+      if (context.mounted) {
+        context.push('/campaign/$campaignId/home');
+      }
+    } catch (error) {
+      if (!context.mounted) {
+        return;
+      }
+
+      final message = error is AppException ? error.message : 'Unable to create campaign.';
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    }
   }
 }

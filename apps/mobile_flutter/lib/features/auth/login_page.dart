@@ -53,7 +53,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
       title: 'Sign In',
       actions: [
         IconButton(
-          onPressed: () => context.go('/setup'),
+          onPressed: () => context.push('/setup'),
           icon: const Icon(Icons.settings),
         ),
       ],

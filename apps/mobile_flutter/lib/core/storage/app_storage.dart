@@ -11,6 +11,7 @@ class AppStorage {
   static const _tokenKey = 'auth_token';
   static const _baseUrlKey = 'base_url';
   static const _lastCampaignIdKey = 'last_campaign_id';
+  static const _authUserJsonKey = 'auth_user_json';
 
   final FlutterSecureStorage _secureStorage;
   final SharedPreferences _sharedPreferences;
@@ -30,4 +31,10 @@ class AppStorage {
   Future<void> saveLastCampaignId(String value) => _sharedPreferences.setString(_lastCampaignIdKey, value);
 
   Future<void> clearLastCampaignId() => _sharedPreferences.remove(_lastCampaignIdKey);
+
+  String? readAuthUserJson() => _sharedPreferences.getString(_authUserJsonKey);
+
+  Future<void> saveAuthUserJson(String json) => _sharedPreferences.setString(_authUserJsonKey, json);
+
+  Future<void> clearAuthUserJson() => _sharedPreferences.remove(_authUserJsonKey);
 }

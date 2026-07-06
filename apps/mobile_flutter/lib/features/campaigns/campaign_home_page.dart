@@ -20,11 +20,11 @@ class CampaignHomePage extends ConsumerWidget {
       title: 'Campaign Home',
       actions: [
         IconButton(
-          onPressed: () => context.go('/campaigns'),
+          onPressed: () => context.push('/campaigns'),
           icon: const Icon(Icons.swap_horiz),
         ),
         IconButton(
-          onPressed: () => context.go('/campaign/$campaignId/settings'),
+          onPressed: () => context.push('/campaign/$campaignId/settings'),
           icon: const Icon(Icons.settings),
         ),
       ],
@@ -65,17 +65,17 @@ class CampaignHomePage extends ConsumerWidget {
               const SizedBox(height: 16),
               PrimaryPillButton(
                 label: 'Catalog',
-                onPressed: () => context.go('/campaign/$campaignId/catalog'),
+                onPressed: () => context.push('/campaign/$campaignId/catalog'),
               ),
               const SizedBox(height: 10),
               SecondaryButton(
                 label: 'Inventory',
-                onPressed: () => context.go('/campaign/$campaignId/inventory'),
+                onPressed: () => context.push('/campaign/$campaignId/inventory'),
               ),
               const SizedBox(height: 10),
               SecondaryButton(
                 label: 'Sales',
-                onPressed: () => context.go('/campaign/$campaignId/sales'),
+                onPressed: () => context.push('/campaign/$campaignId/sales'),
               ),
             ],
           );

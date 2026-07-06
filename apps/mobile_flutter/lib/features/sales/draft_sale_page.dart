@@ -1,4 +1,7 @@
 import 'package:dnd_app/core/api/models/sales_models.dart';
+import 'package:dnd_app/core/api/dio_provider.dart';
+import 'package:dnd_app/core/auth/role_permissions.dart';
+import 'package:dnd_app/core/auth/session_controller.dart';
 import 'package:dnd_app/core/errors/app_exception.dart';
 import 'package:dnd_app/core/ui/ui.dart';
 import 'package:dnd_app/core/utils/money_formatter.dart';
@@ -173,7 +176,66 @@ class _DraftSalePageState extends ConsumerState<DraftSalePage> {
         );
 
     if (mounted) {
-      context.go('/campaign/${widget.campaignId}/sales/$saleId');
+      context.push('/campaign/${widget.campaignId}/sales/$saleId');
+    }
+  }
+
+  Future<void> _voidDraft() async {
+    final reasonController = TextEditingController(text: 'Canceled draft');
+    final formKey = GlobalKey<FormState>();
+    final submit = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Void Draft'),
+          content: Form(
+            key: formKey,
+            child: RoundedTextField(
+              controller: reasonController,
+              label: 'Reason',
+              validator: (value) =>
+                  (value == null || value.trim().isEmpty) ? 'Reason is required.' : null,
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () {
+                if (!formKey.currentState!.validate()) {
+                  return;
+                }
+
+                Navigator.of(context).pop(true);
+              },
+              child: const Text('Void Draft'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (submit != true) {
+      return;
+    }
+
+    await ref.read(bffApiProvider).voidSale(
+          campaignId: widget.campaignId,
+          saleId: widget.draftId,
+          reason: reasonController.text.trim(),
+        );
+
+    ref.invalidate(salesPageProvider(widget.campaignId));
+    ref.invalidate(
+      salesDraftPageProvider(
+        SalesDraftArgs(campaignId: widget.campaignId, draftId: widget.draftId),
+      ),
+    );
+
+    if (mounted) {
+      context.push('/campaign/${widget.campaignId}/sales');
     }
   }
 
@@ -187,6 +249,9 @@ class _DraftSalePageState extends ConsumerState<DraftSalePage> {
     final controllerState = ref.watch(salesDraftControllerProvider);
     final homePage = ref.watch(campaignHomePageProvider(widget.campaignId));
     final currency = homePage.valueOrNull?.currency;
+    final session = ref.watch(sessionControllerProvider);
+    final canWrite = (session.user?.isPlatformAdmin ?? false) ||
+        isCampaignWriteRole(homePage.valueOrNull?.myRole);
 
     ref.listen<AsyncValue<void>>(salesDraftControllerProvider, (previous, next) {
       next.whenOrNull(
@@ -224,42 +289,44 @@ class _DraftSalePageState extends ConsumerState<DraftSalePage> {
                   ],
                 ),
               ),
-              const SizedBox(height: 12),
-              InfoCard(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Add line', style: Theme.of(context).textTheme.titleMedium),
-                    const SizedBox(height: 8),
-                    DropdownButtonFormField<String?>(
-                      initialValue: _selectedItemId,
-                      decoration: const InputDecoration(labelText: 'Item'),
-                      items: [
-                        const DropdownMenuItem<String?>(value: null, child: Text('Select item')),
-                        ...data.itemOptions.map(
-                          (item) => DropdownMenuItem<String?>(
-                            value: item.itemId,
-                            child: Text(item.name),
+              if (canWrite) ...[
+                const SizedBox(height: 12),
+                InfoCard(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Add line', style: Theme.of(context).textTheme.titleMedium),
+                      const SizedBox(height: 8),
+                      DropdownButtonFormField<String?>(
+                        initialValue: _selectedItemId,
+                        decoration: const InputDecoration(labelText: 'Item'),
+                        items: [
+                          const DropdownMenuItem<String?>(value: null, child: Text('Select item')),
+                          ...data.itemOptions.map(
+                            (item) => DropdownMenuItem<String?>(
+                              value: item.itemId,
+                              child: Text(item.name),
+                            ),
                           ),
-                        ),
-                      ],
-                      onChanged: (value) => setState(() => _selectedItemId = value),
-                    ),
-                    const SizedBox(height: 8),
-                    RoundedTextField(
-                      controller: _quantityController,
-                      label: 'Quantity',
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                    ),
-                    const SizedBox(height: 10),
-                    PrimaryPillButton(
-                      label: 'Add Item',
-                      onPressed: controllerState.isLoading ? null : () => _addLine(data),
-                      isLoading: controllerState.isLoading,
-                    ),
-                  ],
+                        ],
+                        onChanged: (value) => setState(() => _selectedItemId = value),
+                      ),
+                      const SizedBox(height: 8),
+                      RoundedTextField(
+                        controller: _quantityController,
+                        label: 'Quantity',
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      ),
+                      const SizedBox(height: 10),
+                      PrimaryPillButton(
+                        label: 'Add Item',
+                        onPressed: controllerState.isLoading ? null : () => _addLine(data),
+                        isLoading: controllerState.isLoading,
+                      ),
+                    ],
+                  ),
                 ),
-              ),
+              ],
               const SizedBox(height: 12),
               Text('Lines', style: Theme.of(context).textTheme.titleMedium),
               const SizedBox(height: 8),
@@ -284,11 +351,11 @@ class _DraftSalePageState extends ConsumerState<DraftSalePage> {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             IconButton(
-                              onPressed: controllerState.isLoading ? null : () => _editLine(line),
+                              onPressed: controllerState.isLoading || !canWrite ? null : () => _editLine(line),
                               icon: const Icon(Icons.edit_outlined),
                             ),
                             IconButton(
-                              onPressed: controllerState.isLoading ? null : () => _removeLine(line),
+                              onPressed: controllerState.isLoading || !canWrite ? null : () => _removeLine(line),
                               icon: const Icon(Icons.delete_outline),
                             ),
                           ],
@@ -314,9 +381,16 @@ class _DraftSalePageState extends ConsumerState<DraftSalePage> {
                 ),
               ),
               const SizedBox(height: 12),
+              SecondaryButton(
+                label: 'Void Draft',
+                onPressed: controllerState.isLoading || !canWrite ? null : _voidDraft,
+              ),
+              const SizedBox(height: 8),
               PrimaryPillButton(
                 label: 'Complete Sale',
-                onPressed: controllerState.isLoading || data.draft.lines.isEmpty ? null : _completeDraft,
+                onPressed: controllerState.isLoading || data.draft.lines.isEmpty || !canWrite
+                    ? null
+                    : _completeDraft,
                 isLoading: controllerState.isLoading,
               ),
             ],

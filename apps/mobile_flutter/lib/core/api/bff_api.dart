@@ -43,6 +43,25 @@ class BffApi {
     );
   }
 
+  Future<String> createCampaign({
+    required String name,
+    String? description,
+  }) async {
+    return _request(
+      () => _dio.post(
+        '/api/v1/pages/campaigns',
+        data: {
+          'name': name,
+          'description': description,
+        },
+      ),
+      (data) {
+        final map = _asMap(data);
+        return map['campaignId']?.toString() ?? '';
+      },
+    );
+  }
+
   Future<CampaignHomePageDto> getCampaignHomePage(String campaignId) async {
     return _request(
       () => _dio.get('/api/v1/pages/campaign/$campaignId/home'),
@@ -139,6 +158,272 @@ class BffApi {
     );
   }
 
+  Future<String> createInvite({
+    required String campaignId,
+    required String role,
+    required int maxUses,
+    int? expiresInDays,
+  }) async {
+    return _request(
+      () => _dio.post(
+        '/api/v1/actions/invites',
+        data: {
+          'campaignId': campaignId,
+          'role': role,
+          'maxUses': maxUses,
+          'expiresInDays': expiresInDays,
+        },
+      ),
+      (data) {
+        final map = _asMap(data);
+        return map['code']?.toString() ?? '';
+      },
+    );
+  }
+
+  Future<bool> updateCampaignCalendar({
+    required String campaignId,
+    required CalendarConfigDto calendar,
+  }) async {
+    return _request(
+      () => _dio.put(
+        '/api/v1/actions/campaign-settings/calendar',
+        data: {
+          'campaignId': campaignId,
+          'calendar': calendar.toJson(),
+        },
+      ),
+      (data) {
+        final map = _asMap(data);
+        return map['updated'] == true;
+      },
+    );
+  }
+
+  Future<bool> updateCampaignCurrency({
+    required String campaignId,
+    required CurrencyConfigDto currency,
+  }) async {
+    return _request(
+      () => _dio.put(
+        '/api/v1/actions/campaign-settings/currency',
+        data: {
+          'campaignId': campaignId,
+          'currency': currency.toJson(),
+        },
+      ),
+      (data) {
+        final map = _asMap(data);
+        return map['updated'] == true;
+      },
+    );
+  }
+
+  Future<String> createCategory({
+    required String campaignId,
+    required String name,
+  }) async {
+    return _request(
+      () => _dio.post(
+        '/api/v1/actions/categories',
+        data: {
+          'campaignId': campaignId,
+          'name': name,
+        },
+      ),
+      (data) {
+        final map = _asMap(data);
+        return map['categoryId']?.toString() ?? '';
+      },
+    );
+  }
+
+  Future<String> createUnit({
+    required String campaignId,
+    required String name,
+  }) async {
+    return _request(
+      () => _dio.post(
+        '/api/v1/actions/units',
+        data: {
+          'campaignId': campaignId,
+          'name': name,
+        },
+      ),
+      (data) {
+        final map = _asMap(data);
+        return map['unitId']?.toString() ?? '';
+      },
+    );
+  }
+
+  Future<String> createTag({
+    required String campaignId,
+    required String name,
+  }) async {
+    return _request(
+      () => _dio.post(
+        '/api/v1/actions/tags',
+        data: {
+          'campaignId': campaignId,
+          'name': name,
+        },
+      ),
+      (data) {
+        final map = _asMap(data);
+        return map['tagId']?.toString() ?? '';
+      },
+    );
+  }
+
+  Future<String> createCatalogItem({
+    required String campaignId,
+    required String name,
+    required String categoryId,
+    required String unitId,
+    required int baseValueMinor,
+    int? defaultListPriceMinor,
+    String? description,
+    double? weight,
+    String? imageAssetId,
+    List<String>? tagIds,
+  }) async {
+    return _request(
+      () => _dio.post(
+        '/api/v1/actions/items',
+        data: {
+          'campaignId': campaignId,
+          'name': name,
+          'description': description,
+          'categoryId': categoryId,
+          'unitId': unitId,
+          'baseValueMinor': baseValueMinor,
+          'defaultListPriceMinor': defaultListPriceMinor,
+          'weight': weight,
+          'imageAssetId': imageAssetId,
+          'tagIds': tagIds ?? <String>[],
+        },
+      ),
+      (data) {
+        final map = _asMap(data);
+        return map['itemId']?.toString() ?? '';
+      },
+    );
+  }
+
+  Future<bool> setCatalogItemArchived({
+    required String campaignId,
+    required String itemId,
+    required bool isArchived,
+  }) async {
+    return _request(
+      () => _dio.post(
+        '/api/v1/actions/items/$itemId/archive',
+        data: {
+          'campaignId': campaignId,
+          'isArchived': isArchived,
+        },
+      ),
+      (data) {
+        final map = _asMap(data);
+        return map['updated'] == true;
+      },
+    );
+  }
+
+  Future<String> createStorageLocation({
+    required String campaignId,
+    required String name,
+    required String type,
+    String? placeId,
+    String? code,
+    String? notes,
+  }) async {
+    return _request(
+      () => _dio.post(
+        '/api/v1/actions/storage-locations',
+        data: {
+          'campaignId': campaignId,
+          'placeId': placeId,
+          'name': name,
+          'code': code,
+          'type': type,
+          'notes': notes,
+        },
+      ),
+      (data) {
+        final map = _asMap(data);
+        return map['storageLocationId']?.toString() ?? '';
+      },
+    );
+  }
+
+  Future<String> createInventoryLot({
+    required String campaignId,
+    required String itemId,
+    required String storageLocationId,
+    required double quantity,
+    required int unitCostMinor,
+    required int acquiredWorldDay,
+    String? source,
+    String? notes,
+  }) async {
+    return _request(
+      () => _dio.post(
+        '/api/v1/actions/inventory/lots',
+        data: {
+          'campaignId': campaignId,
+          'itemId': itemId,
+          'storageLocationId': storageLocationId,
+          'quantity': quantity,
+          'unitCostMinor': unitCostMinor,
+          'acquiredWorldDay': acquiredWorldDay,
+          'source': source,
+          'notes': notes,
+        },
+      ),
+      (data) {
+        final map = _asMap(data);
+        return map['lotId']?.toString() ?? '';
+      },
+    );
+  }
+
+  Future<String> createInventoryAdjustment({
+    required String campaignId,
+    required String itemId,
+    required String storageLocationId,
+    required double deltaQuantity,
+    required String reason,
+    required int worldDay,
+    String? lotId,
+    String? notes,
+    String? referenceType,
+    String? referenceId,
+  }) async {
+    return _request(
+      () => _dio.post(
+        '/api/v1/actions/inventory/adjustments',
+        data: {
+          'campaignId': campaignId,
+          'itemId': itemId,
+          'storageLocationId': storageLocationId,
+          'lotId': lotId,
+          'deltaQuantity': deltaQuantity,
+          'reason': reason,
+          'worldDay': worldDay,
+          'notes': notes,
+          'referenceType': referenceType,
+          'referenceId': referenceId,
+        },
+      ),
+      (data) {
+        final map = _asMap(data);
+        return map['adjustmentId']?.toString() ?? '';
+      },
+    );
+  }
+
   Future<SalesDraftCreateResponseDto> createDraftSale(SalesDraftCreateRequestDto request) async {
     return _request(
       () => _dio.post('/api/v1/actions/sales/draft/create', data: request.toJson()),
@@ -177,6 +462,26 @@ class BffApi {
     return _request(
       () => _dio.post('/api/v1/actions/sales/draft/complete', data: request.toJson()),
       (data) => SalesDraftCompleteResponseDto.fromJson(_asMap(data)),
+    );
+  }
+
+  Future<String> voidSale({
+    required String campaignId,
+    required String saleId,
+    required String reason,
+  }) async {
+    return _request(
+      () => _dio.post(
+        '/api/v1/actions/sales/$saleId/void',
+        data: {
+          'campaignId': campaignId,
+          'reason': reason,
+        },
+      ),
+      (data) {
+        final map = _asMap(data);
+        return map['status']?.toString() ?? '';
+      },
     );
   }
 

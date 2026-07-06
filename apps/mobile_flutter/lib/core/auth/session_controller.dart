@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:dnd_app/core/api/models/auth_models.dart';
 import 'package:dnd_app/core/storage/app_storage.dart';
@@ -78,11 +79,14 @@ class SessionController extends StateNotifier<SessionState> {
     final baseUrl = storage.readBaseUrl();
     final token = await storage.readToken();
     final selectedCampaignId = storage.readLastCampaignId();
+    final userJson = storage.readAuthUserJson();
+    final user = _readUserFromJson(userJson);
 
     state = state.copyWith(
       initialized: true,
       baseUrl: baseUrl,
       token: token,
+      user: user,
       selectedCampaignId: selectedCampaignId,
     );
   }
@@ -100,6 +104,7 @@ class SessionController extends StateNotifier<SessionState> {
   }) async {
     final storage = await _storage();
     await storage.saveToken(token);
+    await storage.saveAuthUserJson(jsonEncode(user.toJson()));
 
     state = state.copyWith(token: token, user: user);
   }
@@ -107,6 +112,7 @@ class SessionController extends StateNotifier<SessionState> {
   Future<void> logout() async {
     final storage = await _storage();
     await storage.clearToken();
+    await storage.clearAuthUserJson();
 
     state = state.copyWith(clearToken: true, clearUser: true);
   }
@@ -125,4 +131,21 @@ class SessionController extends StateNotifier<SessionState> {
   }
 
   Future<AppStorage> _storage() => _ref.read(appStorageProvider.future);
+
+  AuthUserDto? _readUserFromJson(String? value) {
+    if (value == null || value.trim().isEmpty) {
+      return null;
+    }
+
+    try {
+      final decoded = jsonDecode(value);
+      if (decoded is! Map<String, dynamic>) {
+        return null;
+      }
+
+      return AuthUserDto.fromJson(decoded);
+    } catch (_) {
+      return null;
+    }
+  }
 }

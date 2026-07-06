@@ -1,0 +1,31 @@
+{
+  "name": "DnD App Monorepo",
+  "image": "mcr.microsoft.com/devcontainers/universal:5-linux",
+  "runArgs": [
+    "--privileged",
+    "--network=host",
+    "-v",
+    "/dev/bus/usb:/dev/bus/usb"
+  ],
+  "containerEnv": {
+    "JAVA_HOME": "/usr/local/sdkman/candidates/java/21.0.9-ms",
+    "ANDROID_HOME": "/usr/lib/android-sdk",
+    "ANDROID_SDK_ROOT": "/usr/lib/android-sdk",
+    "FLUTTER_HOME": "/usr/local/flutter"
+  },
+  "remoteEnv": {
+    "PATH": "/usr/local/flutter/bin:/usr/lib/android-sdk/cmdline-tools/latest/bin:/usr/lib/android-sdk/platform-tools:/usr/local/sdkman/candidates/java/21.0.9-ms/bin:${containerEnv:PATH}"
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "openai.chatgpt",
+        "Dart-Code.flutter",
+        "Dart-Code.dart-code",
+        "ms-dotnettools.csharp",
+        "ms-azuretools.vscode-docker"
+      ]
+    }
+  },
+  "postCreateCommand": "bash .devcontainer/post-create.sh"
+}

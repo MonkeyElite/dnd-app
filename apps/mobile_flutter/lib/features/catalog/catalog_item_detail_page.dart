@@ -1,4 +1,8 @@
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:dnd_app/core/api/dio_provider.dart';
+import 'package:dnd_app/core/auth/role_permissions.dart';
+import 'package:dnd_app/core/auth/session_controller.dart';
+import 'package:dnd_app/core/errors/app_exception.dart';
 import 'package:dnd_app/core/ui/ui.dart';
 import 'package:dnd_app/core/utils/money_formatter.dart';
 import 'package:dnd_app/features/campaigns/campaign_providers.dart';
@@ -6,7 +10,7 @@ import 'package:dnd_app/features/catalog/catalog_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class CatalogItemDetailPage extends ConsumerWidget {
+class CatalogItemDetailPage extends ConsumerStatefulWidget {
   const CatalogItemDetailPage({
     super.key,
     required this.campaignId,
@@ -17,22 +21,80 @@ class CatalogItemDetailPage extends ConsumerWidget {
   final String itemId;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final page = ref.watch(
-      catalogItemPageProvider(CatalogItemPageArgs(campaignId: campaignId, itemId: itemId)),
+  ConsumerState<CatalogItemDetailPage> createState() => _CatalogItemDetailPageState();
+}
+
+class _CatalogItemDetailPageState extends ConsumerState<CatalogItemDetailPage> {
+  bool _isUpdatingArchive = false;
+
+  Future<void> _setArchived(bool isArchived) async {
+    final confirmed = await showConfirmDialog(
+      context: context,
+      title: isArchived ? 'Archive Item' : 'Restore Item',
+      message: isArchived
+          ? 'Hide this item from active catalog usage?'
+          : 'Restore this item back to active usage?',
+      confirmLabel: isArchived ? 'Archive' : 'Restore',
     );
-    final homePage = ref.watch(campaignHomePageProvider(campaignId));
+
+    if (!confirmed) {
+      return;
+    }
+
+    setState(() => _isUpdatingArchive = true);
+
+    try {
+      await ref.read(bffApiProvider).setCatalogItemArchived(
+            campaignId: widget.campaignId,
+            itemId: widget.itemId,
+            isArchived: isArchived,
+          );
+
+      ref.invalidate(catalogItemPageProvider);
+      ref.invalidate(catalogPageProvider);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(isArchived ? 'Item archived.' : 'Item restored.'),
+          ),
+        );
+      }
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      final message = error is AppException ? error.message : 'Unable to update item state.';
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    } finally {
+      if (mounted) {
+        setState(() => _isUpdatingArchive = false);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final page = ref.watch(
+      catalogItemPageProvider(
+        CatalogItemPageArgs(campaignId: widget.campaignId, itemId: widget.itemId),
+      ),
+    );
+    final homePage = ref.watch(campaignHomePageProvider(widget.campaignId));
     final currency = homePage.valueOrNull?.currency;
+    final session = ref.watch(sessionControllerProvider);
+    final canWrite = (session.user?.isPlatformAdmin ?? false) ||
+        isCampaignWriteRole(homePage.valueOrNull?.myRole);
 
     return AppScaffold(
       title: 'Item Detail',
       child: AsyncPage(
         value: page,
         onRetry: () => ref.invalidate(
-          catalogItemPageProvider(CatalogItemPageArgs(campaignId: campaignId, itemId: itemId)),
+          catalogItemPageProvider(CatalogItemPageArgs(campaignId: widget.campaignId, itemId: widget.itemId)),
         ),
         onRefresh: () => ref.refresh(
-          catalogItemPageProvider(CatalogItemPageArgs(campaignId: campaignId, itemId: itemId)).future,
+          catalogItemPageProvider(CatalogItemPageArgs(campaignId: widget.campaignId, itemId: widget.itemId)).future,
         ),
         builder: (data) {
           final item = data.item;
@@ -96,6 +158,13 @@ class CatalogItemDetailPage extends ConsumerWidget {
                   ],
                 ),
               ),
+              if (canWrite) ...[
+                const SizedBox(height: 12),
+                SecondaryButton(
+                  label: item.isArchived ? 'Restore Item' : 'Archive Item',
+                  onPressed: _isUpdatingArchive ? null : () => _setArchived(!item.isArchived),
+                ),
+              ],
             ],
           );
         },

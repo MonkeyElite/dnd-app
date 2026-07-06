@@ -82,7 +82,7 @@ class _ServerSetupPageState extends ConsumerState<ServerSetupPage> {
     }
 
     setState(() => _isSaving = false);
-    context.go('/login');
+    context.push('/login');
   }
 
   @override
