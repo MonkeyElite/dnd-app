@@ -18,6 +18,8 @@ class CampaignHomePage extends ConsumerWidget {
 
     return AppScaffold(
       title: 'Campaign Home',
+      backgroundAsset: FantasyAssets.backgroundTurtleAlt,
+      backgroundAlignment: Alignment.bottomCenter,
       actions: [
         IconButton(
           onPressed: () => context.push('/campaigns'),
@@ -34,48 +36,39 @@ class CampaignHomePage extends ConsumerWidget {
         onRefresh: () => ref.refresh(campaignHomePageProvider(campaignId).future),
         builder: (data) {
           return ListView(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.fromLTRB(20, 18, 20, 24),
             children: [
-              InfoCard(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      data.campaignName,
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
-                    ),
-                    if ((data.campaignDescription ?? '').isNotEmpty) ...[
-                      const SizedBox(height: 4),
-                      Text(data.campaignDescription!),
-                    ],
-                    const SizedBox(height: 10),
-                    WorldDateText(
-                      worldDay: data.currentWorldDay,
-                      calendar: data.calendar,
-                      style: const TextStyle(fontWeight: FontWeight.w600),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Role: ${data.myRole}',
-                      style: const TextStyle(color: Color(0xFF4F6076)),
-                    ),
-                  ],
+              CampaignHeroCard(
+                title: data.campaignName,
+                description: data.campaignDescription,
+                date: WorldDateText(
+                  worldDay: data.currentWorldDay,
+                  calendar: data.calendar,
+                  style: const TextStyle(
+                    color: FantasyColors.parchment,
+                    fontSize: 17,
+                    height: 1.35,
+                  ),
                 ),
+                role: data.myRole,
               ),
-              const SizedBox(height: 16),
-              PrimaryPillButton(
+              const SizedBox(height: 34),
+              FantasyNavTile(
+                icon: Icons.menu_book_rounded,
                 label: 'Catalog',
-                onPressed: () => context.push('/campaign/$campaignId/catalog'),
+                onTap: () => context.push('/campaign/$campaignId/catalog'),
               ),
-              const SizedBox(height: 10),
-              SecondaryButton(
+              const SizedBox(height: 18),
+              FantasyNavTile(
+                icon: Icons.backpack_rounded,
                 label: 'Inventory',
-                onPressed: () => context.push('/campaign/$campaignId/inventory'),
+                onTap: () => context.push('/campaign/$campaignId/inventory'),
               ),
-              const SizedBox(height: 10),
-              SecondaryButton(
+              const SizedBox(height: 18),
+              FantasyNavTile(
+                icon: Icons.toll_rounded,
                 label: 'Sales',
-                onPressed: () => context.push('/campaign/$campaignId/sales'),
+                onTap: () => context.push('/campaign/$campaignId/sales'),
               ),
             ],
           );

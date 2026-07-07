@@ -23,7 +23,7 @@ class SearchBarWidget extends StatelessWidget {
         hintText: hintText,
         prefixIcon: const Icon(Icons.search),
         suffixIcon: controller.text.isEmpty
-            ? null
+            ? const Icon(Icons.auto_awesome, size: 20)
             : IconButton(
                 onPressed: () {
                   controller.clear();

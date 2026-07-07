@@ -32,3 +32,9 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/images/background_map.png
+    - assets/images/background_turtle.png
+    - assets/images/background_turtl2.png
+    - assets/images/chest_stuff.png
+    - assets/images/paper_quill.png

@@ -28,7 +28,7 @@ class InventorySummaryPage extends ConsumerWidget {
           icon: const Icon(Icons.location_on_outlined),
         ),
         IconButton(
-          onPressed: () => context.push('/campaign/${campaignId}/home'),
+          onPressed: () => context.push('/campaign/$campaignId/home'),
           icon: const Icon(Icons.home_outlined),
         ),
       ],
@@ -36,9 +36,20 @@ class InventorySummaryPage extends ConsumerWidget {
         value: rowsValue,
         onRetry: () => ref.invalidate(inventorySummaryViewProvider(campaignId)),
         onRefresh: () => ref.refresh(inventorySummaryViewProvider(campaignId).future),
-        isEmpty: (rows) => rows.isEmpty,
-        emptyMessage: 'No inventory data available.',
         builder: (rows) {
+          if (rows.isEmpty) {
+            return ListView(
+              padding: const EdgeInsets.fromLTRB(16, 28, 16, 24),
+              children: const [
+                FantasyDivider(),
+                FantasyEmptyState(
+                  title: 'No inventory found',
+                  message: 'Stocked items and carried goods will appear here once inventory is added.',
+                ),
+              ],
+            );
+          }
+
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
@@ -46,7 +57,7 @@ class InventorySummaryPage extends ConsumerWidget {
                 final valueText = currency == null
                     ? '${row.totalValueMinor}'
                     : formatMoneyMinorUnits(row.totalValueMinor, currency);
-                final meta = '${row.categoryName} • ${row.totalQuantity.toStringAsFixed(2)} ${row.unitName}';
+                final meta = '${row.categoryName} - ${row.totalQuantity.toStringAsFixed(2)} ${row.unitName}';
 
                 return ItemRowTile(
                   name: row.itemName,

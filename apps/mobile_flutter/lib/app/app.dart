@@ -13,7 +13,7 @@ class DndMobileApp extends ConsumerWidget {
     return MaterialApp.router(
       title: 'D&D Campaign Shop',
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.light(),
+      theme: AppTheme.fantasyDark(),
       routerConfig: router,
     );
   }

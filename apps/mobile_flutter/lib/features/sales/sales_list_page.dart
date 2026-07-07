@@ -10,10 +10,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 class SalesListPage extends ConsumerWidget {
-  const SalesListPage({
-    super.key,
-    required this.campaignId,
-  });
+  const SalesListPage({super.key, required this.campaignId});
 
   final String campaignId;
 
@@ -22,14 +19,22 @@ class SalesListPage extends ConsumerWidget {
     final page = ref.watch(salesPageProvider(campaignId));
     final homePage = ref.watch(campaignHomePageProvider(campaignId));
     final session = ref.watch(sessionControllerProvider);
-    final canWrite = (session.user?.isPlatformAdmin ?? false) ||
+    final canWrite =
+        (session.user?.isPlatformAdmin ?? false) ||
         isCampaignWriteRole(homePage.valueOrNull?.myRole);
 
-    ref.listen<AsyncValue<void>>(salesDraftControllerProvider, (previous, next) {
+    ref.listen<AsyncValue<void>>(salesDraftControllerProvider, (
+      previous,
+      next,
+    ) {
       next.whenOrNull(
         error: (error, _) {
-          final message = error is AppException ? error.message : 'Sales action failed.';
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+          final message = error is AppException
+              ? error.message
+              : 'Sales action failed.';
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text(message)));
         },
       );
     });
@@ -40,7 +45,7 @@ class SalesListPage extends ConsumerWidget {
         title: 'Sales',
         actions: [
           IconButton(
-            onPressed: () => context.push('/campaign/${campaignId}/home'),
+            onPressed: () => context.push('/campaign/$campaignId/home'),
             icon: const Icon(Icons.home_outlined),
           ),
         ],
@@ -48,9 +53,13 @@ class SalesListPage extends ConsumerWidget {
             ? FloatingActionButton.extended(
                 onPressed: () async {
                   try {
-                    final draftId = await ref.read(salesDraftControllerProvider.notifier).createDraft(campaignId);
+                    final draftId = await ref
+                        .read(salesDraftControllerProvider.notifier)
+                        .createDraft(campaignId);
                     if (context.mounted) {
-                      context.push('/campaign/$campaignId/sales/draft/$draftId');
+                      context.push(
+                        '/campaign/$campaignId/sales/draft/$draftId',
+                      );
                     }
                   } catch (_) {
                     // Errors are surfaced through provider listener.
@@ -58,6 +67,7 @@ class SalesListPage extends ConsumerWidget {
                 },
                 icon: const Icon(Icons.add),
                 label: const Text('New Draft'),
+                extendedPadding: const EdgeInsets.symmetric(horizontal: 26),
               )
             : null,
         child: AsyncPage(
@@ -65,7 +75,9 @@ class SalesListPage extends ConsumerWidget {
           onRetry: () => ref.invalidate(salesPageProvider(campaignId)),
           onRefresh: () => ref.refresh(salesPageProvider(campaignId).future),
           builder: (data) {
-            final drafts = data.sales.where((sale) => sale.status.toLowerCase() == 'draft').toList();
+            final drafts = data.sales
+                .where((sale) => sale.status.toLowerCase() == 'draft')
+                .toList();
             final completed = data.sales
                 .where((sale) => sale.status.toLowerCase() == 'completed')
                 .toList();
@@ -75,19 +87,60 @@ class SalesListPage extends ConsumerWidget {
 
             return Column(
               children: [
-                const TabBar(
-                  tabs: [
-                    Tab(text: 'Draft'),
-                    Tab(text: 'Completed'),
-                    Tab(text: 'Void'),
-                  ],
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: FantasyColors.panel,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: FantasyColors.border),
+                    ),
+                    child: TabBar(
+                      dividerColor: Colors.transparent,
+                      indicatorSize: TabBarIndicatorSize.tab,
+                      indicatorPadding: const EdgeInsets.all(6),
+                      indicator: BoxDecoration(
+                        color: FantasyColors.teal.withValues(alpha: 0.10),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: FantasyColors.teal.withValues(alpha: 0.32),
+                        ),
+                      ),
+                      tabs: const [
+                        Tab(icon: Icon(Icons.draw_outlined), text: 'Draft'),
+                        Tab(
+                          icon: Icon(Icons.check_circle_outline),
+                          text: 'Completed',
+                        ),
+                        Tab(icon: Icon(Icons.block), text: 'Void'),
+                      ],
+                    ),
+                  ),
                 ),
                 Expanded(
                   child: TabBarView(
                     children: [
-                      _SalesTabList(campaignId: campaignId, rows: drafts, emptyText: 'No drafts.'),
-                      _SalesTabList(campaignId: campaignId, rows: completed, emptyText: 'No completed sales.'),
-                      _SalesTabList(campaignId: campaignId, rows: voided, emptyText: 'No voided sales.'),
+                      _SalesTabList(
+                        campaignId: campaignId,
+                        rows: drafts,
+                        emptyTitle: 'No drafts',
+                        emptyText:
+                            'Create a new draft to get started managing your sales.',
+                      ),
+                      _SalesTabList(
+                        campaignId: campaignId,
+                        rows: completed,
+                        emptyTitle: 'No completed sales',
+                        emptyText:
+                            'Completed sales will appear here once a draft is finished.',
+                      ),
+                      _SalesTabList(
+                        campaignId: campaignId,
+                        rows: voided,
+                        emptyTitle: 'No voided sales',
+                        emptyText:
+                            'Voided sales will be kept here for campaign records.',
+                      ),
                     ],
                   ),
                 ),
@@ -104,17 +157,23 @@ class _SalesTabList extends StatelessWidget {
   const _SalesTabList({
     required this.campaignId,
     required this.rows,
+    required this.emptyTitle,
     required this.emptyText,
   });
 
   final String campaignId;
   final List<SalesPageRowDto> rows;
+  final String emptyTitle;
   final String emptyText;
 
   @override
   Widget build(BuildContext context) {
     if (rows.isEmpty) {
-      return Center(child: Text(emptyText));
+      return FantasyEmptyState(
+        title: emptyTitle,
+        message: emptyText,
+        variant: FantasyEmptyVariant.scroll,
+      );
     }
 
     return ListView.builder(
@@ -123,16 +182,21 @@ class _SalesTabList extends StatelessWidget {
       itemBuilder: (context, index) {
         final row = rows[index];
         final isDraft = row.status.toLowerCase() == 'draft';
-        return Card(
-          margin: const EdgeInsets.only(bottom: 10),
-          child: ListTile(
-            title: Text('${row.customerName ?? 'Walk-in'} • Day ${row.soldWorldDay}'),
-            subtitle: Text('Total: ${row.totalMinor}'),
-            trailing: Text(row.status),
-            onTap: () => context.push(
-              isDraft
-                  ? '/campaign/$campaignId/sales/draft/${row.saleId}'
-                  : '/campaign/$campaignId/sales/${row.saleId}',
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 10),
+          child: FantasyPanel(
+            padding: EdgeInsets.zero,
+            child: ListTile(
+              title: Text(
+                '${row.customerName ?? 'Walk-in'} - Day ${row.soldWorldDay}',
+              ),
+              subtitle: Text('Total: ${row.totalMinor}'),
+              trailing: Text(row.status),
+              onTap: () => context.push(
+                isDraft
+                    ? '/campaign/$campaignId/sales/draft/${row.saleId}'
+                    : '/campaign/$campaignId/sales/${row.saleId}',
+              ),
             ),
           ),
         );

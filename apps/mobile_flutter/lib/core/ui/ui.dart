@@ -2,6 +2,7 @@ export 'app_scaffold.dart';
 export 'async_page.dart';
 export 'buttons.dart';
 export 'confirm_dialog.dart';
+export 'fantasy_widgets.dart';
 export 'info_card.dart';
 export 'item_row_tile.dart';
 export 'money_text.dart';

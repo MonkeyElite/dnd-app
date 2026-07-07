@@ -12,10 +12,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 class CatalogListPage extends ConsumerStatefulWidget {
-  const CatalogListPage({
-    super.key,
-    required this.campaignId,
-  });
+  const CatalogListPage({super.key, required this.campaignId});
 
   final String campaignId;
 
@@ -72,26 +69,23 @@ class _CatalogListPageState extends ConsumerState<CatalogListPage> {
     if (selection == 'category') {
       await _promptCreateNamedEntity(
         title: 'Create Category',
-        onSubmit: (name) => ref.read(bffApiProvider).createCategory(
-              campaignId: widget.campaignId,
-              name: name,
-            ),
+        onSubmit: (name) => ref
+            .read(bffApiProvider)
+            .createCategory(campaignId: widget.campaignId, name: name),
       );
     } else if (selection == 'unit') {
       await _promptCreateNamedEntity(
         title: 'Create Unit',
-        onSubmit: (name) => ref.read(bffApiProvider).createUnit(
-              campaignId: widget.campaignId,
-              name: name,
-            ),
+        onSubmit: (name) => ref
+            .read(bffApiProvider)
+            .createUnit(campaignId: widget.campaignId, name: name),
       );
     } else if (selection == 'tag') {
       await _promptCreateNamedEntity(
         title: 'Create Tag',
-        onSubmit: (name) => ref.read(bffApiProvider).createTag(
-              campaignId: widget.campaignId,
-              name: name,
-            ),
+        onSubmit: (name) => ref
+            .read(bffApiProvider)
+            .createTag(campaignId: widget.campaignId, name: name),
       );
     } else if (selection == 'item') {
       await _showCreateItemDialog(page);
@@ -119,16 +113,27 @@ class _CatalogListPageState extends ConsumerState<CatalogListPage> {
             child: RoundedTextField(
               controller: nameController,
               label: 'Name',
-              validator: (value) =>
-                  (value == null || value.trim().isEmpty) ? 'Name is required.' : null,
+              validator: (value) => (value == null || value.trim().isEmpty)
+                  ? 'Name is required.'
+                  : null,
             ),
           ),
           actions: [
             TextButton(
+              style: TextButton.styleFrom(
+                fixedSize: const Size(88, 40),
+                padding: EdgeInsets.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
               onPressed: () => Navigator.of(context).pop(false),
               child: const Text('Cancel'),
             ),
             FilledButton(
+              style: FilledButton.styleFrom(
+                fixedSize: const Size(102, 40),
+                padding: EdgeInsets.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
               onPressed: () {
                 if (!formKey.currentState!.validate()) {
                   return;
@@ -150,9 +155,9 @@ class _CatalogListPageState extends ConsumerState<CatalogListPage> {
     try {
       await onSubmit(nameController.text.trim());
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('$title completed.')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('$title completed.')));
       }
     } catch (error) {
       _showError(error, fallbackMessage: 'Unable to complete request.');
@@ -185,127 +190,167 @@ class _CatalogListPageState extends ConsumerState<CatalogListPage> {
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setDialogState) {
+            final mediaQuery = MediaQuery.of(context);
+            final availableHeight =
+                mediaQuery.size.height -
+                mediaQuery.viewInsets.bottom -
+                mediaQuery.padding.vertical -
+                220;
+            final contentHeight = availableHeight
+                .clamp(260.0, 520.0)
+                .toDouble();
+
             return AlertDialog(
+              insetPadding: const EdgeInsets.symmetric(
+                horizontal: 20,
+                vertical: 24,
+              ),
+              clipBehavior: Clip.antiAlias,
               title: const Text('Create Item'),
               content: Form(
                 key: formKey,
-                child: SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      RoundedTextField(
-                        controller: nameController,
-                        label: 'Name',
-                        validator: (value) =>
-                            (value == null || value.trim().isEmpty) ? 'Name is required.' : null,
-                      ),
-                      const SizedBox(height: 8),
-                      RoundedTextField(
-                        controller: descriptionController,
-                        label: 'Description',
-                      ),
-                      const SizedBox(height: 8),
-                      DropdownButtonFormField<String>(
-                        initialValue: categoryId,
-                        decoration: const InputDecoration(labelText: 'Category'),
-                        items: page.filters.categories
-                            .map(
-                              (category) => DropdownMenuItem(
-                                value: category.categoryId,
-                                child: Text(category.name),
-                              ),
-                            )
-                            .toList(),
-                        onChanged: (value) {
-                          if (value == null) {
-                            return;
-                          }
+                child: SizedBox(
+                  width: double.maxFinite,
+                  height: contentHeight,
+                  child: Scrollbar(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          RoundedTextField(
+                            controller: nameController,
+                            label: 'Name',
+                            validator: (value) =>
+                                (value == null || value.trim().isEmpty)
+                                ? 'Name is required.'
+                                : null,
+                          ),
+                          const SizedBox(height: 8),
+                          RoundedTextField(
+                            controller: descriptionController,
+                            label: 'Description',
+                          ),
+                          const SizedBox(height: 8),
+                          DropdownButtonFormField<String>(
+                            initialValue: categoryId,
+                            decoration: const InputDecoration(
+                              labelText: 'Category',
+                            ),
+                            items: page.filters.categories
+                                .map(
+                                  (category) => DropdownMenuItem(
+                                    value: category.categoryId,
+                                    child: Text(category.name),
+                                  ),
+                                )
+                                .toList(),
+                            onChanged: (value) {
+                              if (value == null) {
+                                return;
+                              }
 
-                          setDialogState(() => categoryId = value);
-                        },
+                              setDialogState(() => categoryId = value);
+                            },
+                          ),
+                          const SizedBox(height: 8),
+                          DropdownButtonFormField<String>(
+                            initialValue: unitId,
+                            decoration: const InputDecoration(
+                              labelText: 'Unit',
+                            ),
+                            items: page.filters.units
+                                .map(
+                                  (unit) => DropdownMenuItem(
+                                    value: unit.unitId,
+                                    child: Text(unit.name),
+                                  ),
+                                )
+                                .toList(),
+                            onChanged: (value) {
+                              if (value == null) {
+                                return;
+                              }
+
+                              setDialogState(() => unitId = value);
+                            },
+                          ),
+                          const SizedBox(height: 8),
+                          RoundedTextField(
+                            controller: baseValueController,
+                            label: 'Base Value (minor)',
+                            keyboardType: TextInputType.number,
+                            validator: (value) {
+                              final parsed = int.tryParse(value?.trim() ?? '');
+                              if (parsed == null || parsed < 0) {
+                                return 'Base value must be >= 0.';
+                              }
+
+                              return null;
+                            },
+                          ),
+                          const SizedBox(height: 8),
+                          RoundedTextField(
+                            controller: defaultListPriceController,
+                            label: 'List Price (minor, optional)',
+                            keyboardType: TextInputType.number,
+                            validator: (value) {
+                              final text = value?.trim() ?? '';
+                              if (text.isEmpty) {
+                                return null;
+                              }
+
+                              final parsed = int.tryParse(text);
+                              if (parsed == null || parsed < 0) {
+                                return 'List price must be >= 0.';
+                              }
+
+                              return null;
+                            },
+                          ),
+                          const SizedBox(height: 8),
+                          RoundedTextField(
+                            controller: weightController,
+                            label: 'Weight (optional)',
+                            keyboardType: const TextInputType.numberWithOptions(
+                              decimal: true,
+                            ),
+                            validator: (value) {
+                              final text = value?.trim() ?? '';
+                              if (text.isEmpty) {
+                                return null;
+                              }
+
+                              final parsed = double.tryParse(text);
+                              if (parsed == null || parsed < 0) {
+                                return 'Weight must be >= 0.';
+                              }
+
+                              return null;
+                            },
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 8),
-                      DropdownButtonFormField<String>(
-                        initialValue: unitId,
-                        decoration: const InputDecoration(labelText: 'Unit'),
-                        items: page.filters.units
-                            .map(
-                              (unit) => DropdownMenuItem(
-                                value: unit.unitId,
-                                child: Text(unit.name),
-                              ),
-                            )
-                            .toList(),
-                        onChanged: (value) {
-                          if (value == null) {
-                            return;
-                          }
-
-                          setDialogState(() => unitId = value);
-                        },
-                      ),
-                      const SizedBox(height: 8),
-                      RoundedTextField(
-                        controller: baseValueController,
-                        label: 'Base Value (minor)',
-                        keyboardType: TextInputType.number,
-                        validator: (value) {
-                          final parsed = int.tryParse(value?.trim() ?? '');
-                          if (parsed == null || parsed < 0) {
-                            return 'Base value must be >= 0.';
-                          }
-
-                          return null;
-                        },
-                      ),
-                      const SizedBox(height: 8),
-                      RoundedTextField(
-                        controller: defaultListPriceController,
-                        label: 'List Price (minor, optional)',
-                        keyboardType: TextInputType.number,
-                        validator: (value) {
-                          final text = value?.trim() ?? '';
-                          if (text.isEmpty) {
-                            return null;
-                          }
-
-                          final parsed = int.tryParse(text);
-                          if (parsed == null || parsed < 0) {
-                            return 'List price must be >= 0.';
-                          }
-
-                          return null;
-                        },
-                      ),
-                      const SizedBox(height: 8),
-                      RoundedTextField(
-                        controller: weightController,
-                        label: 'Weight (optional)',
-                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                        validator: (value) {
-                          final text = value?.trim() ?? '';
-                          if (text.isEmpty) {
-                            return null;
-                          }
-
-                          final parsed = double.tryParse(text);
-                          if (parsed == null || parsed < 0) {
-                            return 'Weight must be >= 0.';
-                          }
-
-                          return null;
-                        },
-                      ),
-                    ],
+                    ),
                   ),
                 ),
               ),
               actions: [
                 TextButton(
+                  style: TextButton.styleFrom(
+                    fixedSize: const Size(88, 40),
+                    padding: EdgeInsets.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
                   onPressed: () => Navigator.of(context).pop(false),
                   child: const Text('Cancel'),
                 ),
                 FilledButton(
+                  style: FilledButton.styleFrom(
+                    fixedSize: const Size(102, 40),
+                    padding: EdgeInsets.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
                   onPressed: () {
                     if (!formKey.currentState!.validate()) {
                       return;
@@ -330,7 +375,9 @@ class _CatalogListPageState extends ConsumerState<CatalogListPage> {
       final listPriceText = defaultListPriceController.text.trim();
       final weightText = weightController.text.trim();
 
-      await ref.read(bffApiProvider).createCatalogItem(
+      await ref
+          .read(bffApiProvider)
+          .createCatalogItem(
             campaignId: widget.campaignId,
             name: nameController.text.trim(),
             description: descriptionController.text.trim().isEmpty
@@ -339,15 +386,17 @@ class _CatalogListPageState extends ConsumerState<CatalogListPage> {
             categoryId: categoryId,
             unitId: unitId,
             baseValueMinor: int.parse(baseValueController.text.trim()),
-            defaultListPriceMinor: listPriceText.isEmpty ? null : int.parse(listPriceText),
+            defaultListPriceMinor: listPriceText.isEmpty
+                ? null
+                : int.parse(listPriceText),
             weight: weightText.isEmpty ? null : double.parse(weightText),
             tagIds: const [],
           );
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Item created.')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Item created.')));
       }
     } catch (error) {
       _showError(error, fallbackMessage: 'Unable to create item.');
@@ -360,7 +409,9 @@ class _CatalogListPageState extends ConsumerState<CatalogListPage> {
     }
 
     final message = error is AppException ? error.message : fallbackMessage;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
@@ -375,7 +426,8 @@ class _CatalogListPageState extends ConsumerState<CatalogListPage> {
     final homePage = ref.watch(campaignHomePageProvider(widget.campaignId));
     final currency = homePage.valueOrNull?.currency;
     final session = ref.watch(sessionControllerProvider);
-    final canWrite = (session.user?.isPlatformAdmin ?? false) ||
+    final canWrite =
+        (session.user?.isPlatformAdmin ?? false) ||
         isCampaignWriteRole(homePage.valueOrNull?.myRole);
 
     return AppScaffold(
@@ -384,7 +436,7 @@ class _CatalogListPageState extends ConsumerState<CatalogListPage> {
         if (canWrite && page.valueOrNull != null)
           IconButton(
             onPressed: () => _showCreateActionDialog(page.valueOrNull!),
-            icon: const Icon(Icons.add_circle_outline),
+            icon: const Icon(Icons.add),
           ),
         IconButton(
           onPressed: () => context.push('/campaign/${widget.campaignId}/home'),
@@ -398,18 +450,21 @@ class _CatalogListPageState extends ConsumerState<CatalogListPage> {
         builder: (data) {
           final filteredItems = data.items
               .where(
-                (item) => _selectedTagId == null ||
+                (item) =>
+                    _selectedTagId == null ||
                     item.tags.any((tag) => tag.tagId == _selectedTagId),
               )
               .toList();
 
           return ListView(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
             children: [
               SearchBarWidget(
                 controller: _searchController,
-                hintText: 'Search items',
-                onSubmitted: (value) => setState(() => _search = value.trim().isEmpty ? null : value.trim()),
+                hintText: 'Search items...',
+                onSubmitted: (value) => setState(
+                  () => _search = value.trim().isEmpty ? null : value.trim(),
+                ),
                 onCleared: () => setState(() => _search = null),
               ),
               const SizedBox(height: 10),
@@ -420,7 +475,10 @@ class _CatalogListPageState extends ConsumerState<CatalogListPage> {
                       initialValue: _selectedCategoryId,
                       decoration: const InputDecoration(labelText: 'Category'),
                       items: [
-                        const DropdownMenuItem<String?>(value: null, child: Text('All categories')),
+                        const DropdownMenuItem<String?>(
+                          value: null,
+                          child: Text('All categories'),
+                        ),
                         ...data.filters.categories.map(
                           (category) => DropdownMenuItem<String?>(
                             value: category.categoryId,
@@ -428,7 +486,8 @@ class _CatalogListPageState extends ConsumerState<CatalogListPage> {
                           ),
                         ),
                       ],
-                      onChanged: (value) => setState(() => _selectedCategoryId = value),
+                      onChanged: (value) =>
+                          setState(() => _selectedCategoryId = value),
                     ),
                   ),
                   const SizedBox(width: 10),
@@ -437,7 +496,10 @@ class _CatalogListPageState extends ConsumerState<CatalogListPage> {
                       initialValue: _selectedTagId,
                       decoration: const InputDecoration(labelText: 'Tag'),
                       items: [
-                        const DropdownMenuItem<String?>(value: null, child: Text('All tags')),
+                        const DropdownMenuItem<String?>(
+                          value: null,
+                          child: Text('All tags'),
+                        ),
                         ...data.filters.tags.map(
                           (tag) => DropdownMenuItem<String?>(
                             value: tag.tagId,
@@ -445,25 +507,38 @@ class _CatalogListPageState extends ConsumerState<CatalogListPage> {
                           ),
                         ),
                       ],
-                      onChanged: (value) => setState(() => _selectedTagId = value),
+                      onChanged: (value) =>
+                          setState(() => _selectedTagId = value),
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 28),
               if (filteredItems.isEmpty)
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 40),
-                  child: Center(child: Text('No items found for the selected filters.')),
+                const Column(
+                  children: [
+                    FantasyDivider(),
+                    FantasyEmptyState(
+                      title: 'No items found',
+                      message:
+                          'Try adjusting or clearing your filters to see more items.',
+                    ),
+                  ],
                 )
               else
                 ...filteredItems.map((item) {
-                  final price = item.defaultListPriceMinor ?? item.baseValueMinor;
+                  final price =
+                      item.defaultListPriceMinor ?? item.baseValueMinor;
                   final priceText = currency == null
                       ? '$price ${data.currencyCode}'
                       : formatMoneyMinorUnits(price, currency);
-                  final tags = item.tags.take(2).map((tag) => tag.name).join(', ');
-                  final meta = tags.isEmpty ? item.category.name : '${item.category.name} • $tags';
+                  final tags = item.tags
+                      .take(2)
+                      .map((tag) => tag.name)
+                      .join(', ');
+                  final meta = tags.isEmpty
+                      ? item.category.name
+                      : '${item.category.name} - $tags';
 
                   return ItemRowTile(
                     name: item.name,
