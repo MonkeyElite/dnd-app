@@ -67,8 +67,22 @@ public sealed class CampaignInvitesController(
     }
 
     [HttpGet]
-    public async Task<IActionResult> GetAsync(Guid campaignId, CancellationToken cancellationToken)
+    public async Task<IActionResult> GetAsync(
+        Guid campaignId,
+        [FromQuery] int skip = 0,
+        [FromQuery] int take = 20,
+        CancellationToken cancellationToken = default)
     {
+        if (skip < 0)
+        {
+            return BadRequest(new ErrorResponse("skip must be 0 or greater."));
+        }
+
+        if (take is < 1 or > 100)
+        {
+            return BadRequest(new ErrorResponse("take must be between 1 and 100."));
+        }
+
         if (!TryGetRequestingUserId(out var requestingUserId))
         {
             return Unauthorized();
@@ -79,10 +93,17 @@ public sealed class CampaignInvitesController(
             return Forbid();
         }
 
-        var invites = await dbContext.Invites
+        var query = dbContext.Invites
             .AsNoTracking()
-            .Where(x => x.CampaignId == campaignId)
+            .Where(x => x.CampaignId == campaignId);
+
+        var totalCount = await query.CountAsync(cancellationToken);
+
+        var invites = await query
             .OrderByDescending(x => x.CreatedAt)
+            .ThenByDescending(x => x.InviteId)
+            .Skip(skip)
+            .Take(take)
             .Select(x => new InviteSummaryResponse(
                 x.InviteId,
                 x.Role,
@@ -93,7 +114,7 @@ public sealed class CampaignInvitesController(
                 x.CreatedAt))
             .ToListAsync(cancellationToken);
 
-        return Ok(invites);
+        return Ok(new InviteSummaryPageResponse(invites, totalCount, skip, take));
     }
 
     [HttpPost("{inviteId:guid}/revoke")]

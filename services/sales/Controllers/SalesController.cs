@@ -521,12 +521,6 @@ public sealed class SalesController(
                 return "line unitTrueValueMinor must be greater than or equal to 0.";
             }
 
-            if (line.DiscountMinor < 0)
-            {
-                normalizedRequest = default;
-                return "line discountMinor must be greater than or equal to 0.";
-            }
-
             var grossMinor = NormalizeMinor(quantity * line.UnitSoldPriceMinor);
             if (line.DiscountMinor > grossMinor)
             {
@@ -581,11 +575,11 @@ public sealed class SalesController(
                 return "payment amountMinor must be greater than 0.";
             }
 
-            string? detailsJson = null;
-            if (payment.Details.HasValue
-                && payment.Details.Value.ValueKind is not JsonValueKind.Null and not JsonValueKind.Undefined)
+            var detailsError = ValidatePaymentDetails(parsedMethod, payment.AmountMinor, payment.Details, out var detailsJson);
+            if (detailsError is not null)
             {
-                detailsJson = payment.Details.Value.GetRawText();
+                normalizedRequest = default;
+                return detailsError;
             }
 
             payments.Add(new NormalizedUpdateSalePaymentRequest(
@@ -623,6 +617,102 @@ public sealed class SalesController(
         return null;
     }
 
+    private static string? ValidatePaymentDetails(
+        PaymentMethod method,
+        long amountMinor,
+        JsonElement? details,
+        out string? detailsJson)
+    {
+        detailsJson = null;
+
+        if (!details.HasValue || details.Value.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined)
+        {
+            return method is PaymentMethod.Coin
+                ? "coin payment details are required."
+                : null;
+        }
+
+        detailsJson = details.Value.GetRawText();
+        if (!IsCoinDenominationDetails(details.Value))
+        {
+            return method is PaymentMethod.Coin
+                ? "coin payment details type must be coin-denominations."
+                : null;
+        }
+
+        if (details.Value.ValueKind != JsonValueKind.Object)
+        {
+            return "coin payment details must be an object.";
+        }
+
+        if (!details.Value.TryGetProperty("currencyCode", out var currencyCodeProperty)
+            || currencyCodeProperty.ValueKind != JsonValueKind.String
+            || string.IsNullOrWhiteSpace(currencyCodeProperty.GetString()))
+        {
+            return "coin payment currencyCode is required.";
+        }
+
+        if (!details.Value.TryGetProperty("coins", out var coinsProperty)
+            || coinsProperty.ValueKind != JsonValueKind.Array)
+        {
+            return "coin payment coins are required.";
+        }
+
+        long totalMinor = 0;
+        foreach (var coin in coinsProperty.EnumerateArray())
+        {
+            if (coin.ValueKind != JsonValueKind.Object)
+            {
+                return "coin payment coins must be objects.";
+            }
+
+            if (!coin.TryGetProperty("name", out var nameProperty)
+                || nameProperty.ValueKind != JsonValueKind.String
+                || string.IsNullOrWhiteSpace(nameProperty.GetString()))
+            {
+                return "coin payment denomination name is required.";
+            }
+
+            if (!coin.TryGetProperty("multiplier", out var multiplierProperty)
+                || !multiplierProperty.TryGetInt64(out var multiplier)
+                || multiplier < 1)
+            {
+                return "coin payment denomination multiplier must be at least 1.";
+            }
+
+            if (!coin.TryGetProperty("quantity", out var quantityProperty)
+                || !quantityProperty.TryGetInt64(out var quantity)
+                || quantity < 0)
+            {
+                return "coin payment denomination quantity must be greater than or equal to 0.";
+            }
+
+            try
+            {
+                totalMinor = checked(totalMinor + checked(multiplier * quantity));
+            }
+            catch (OverflowException)
+            {
+                return "coin payment total exceeds supported range.";
+            }
+        }
+
+        if (totalMinor != amountMinor)
+        {
+            return "coin payment denominations must equal amountMinor.";
+        }
+
+        return null;
+    }
+
+    private static bool IsCoinDenominationDetails(JsonElement details)
+    {
+        return details.ValueKind == JsonValueKind.Object
+            && details.TryGetProperty("type", out var typeProperty)
+            && typeProperty.ValueKind == JsonValueKind.String
+            && typeProperty.GetString()?.Equals("coin-denominations", StringComparison.OrdinalIgnoreCase) == true;
+    }
+
     private static string? RecalculateFromLines(
         IEnumerable<SalesOrderLine> lines,
         out RecalculatedTotals totals)
@@ -643,12 +733,6 @@ public sealed class SalesController(
             {
                 totals = default;
                 return "line unitSoldPriceMinor must be greater than or equal to 0.";
-            }
-
-            if (line.DiscountMinor < 0)
-            {
-                totals = default;
-                return "line discountMinor must be greater than or equal to 0.";
             }
 
             var grossMinor = NormalizeMinor(quantity * line.UnitSoldPriceMinor);

@@ -10,7 +10,7 @@ import 'package:dnd_app/features/catalog/catalog_list_page.dart';
 import 'package:dnd_app/features/inventory/inventory_location_detail_page.dart';
 import 'package:dnd_app/features/inventory/inventory_locations_page.dart';
 import 'package:dnd_app/features/inventory/inventory_summary_page.dart';
-import 'package:dnd_app/features/sales/draft_sale_page.dart';
+import 'package:dnd_app/features/sales/direct_sale_checkout_page.dart';
 import 'package:dnd_app/features/sales/sale_detail_page.dart';
 import 'package:dnd_app/features/sales/sales_list_page.dart';
 import 'package:dnd_app/features/settings/settings_page.dart';
@@ -66,10 +66,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/setup',
         builder: (context, state) => const ServerSetupPage(),
       ),
-      GoRoute(
-        path: '/login',
-        builder: (context, state) => const LoginPage(),
-      ),
+      GoRoute(path: '/login', builder: (context, state) => const LoginPage()),
       GoRoute(
         path: '/signup',
         builder: (context, state) => const InviteSignupPage(),
@@ -80,15 +77,13 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/campaign/:campaignId/home',
-        builder: (context, state) => CampaignHomePage(
-          campaignId: state.pathParameters['campaignId']!,
-        ),
+        builder: (context, state) =>
+            CampaignHomePage(campaignId: state.pathParameters['campaignId']!),
       ),
       GoRoute(
         path: '/campaign/:campaignId/catalog',
-        builder: (context, state) => CatalogListPage(
-          campaignId: state.pathParameters['campaignId']!,
-        ),
+        builder: (context, state) =>
+            CatalogListPage(campaignId: state.pathParameters['campaignId']!),
       ),
       GoRoute(
         path: '/campaign/:campaignId/catalog/item/:itemId',
@@ -118,15 +113,21 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/campaign/:campaignId/sales',
-        builder: (context, state) => SalesListPage(
-          campaignId: state.pathParameters['campaignId']!,
-        ),
+        builder: (context, state) =>
+            SalesListPage(campaignId: state.pathParameters['campaignId']!),
       ),
       GoRoute(
         path: '/campaign/:campaignId/sales/draft/:draftId',
-        builder: (context, state) => DraftSalePage(
+        builder: (context, state) => DirectSaleCheckoutPage(
           campaignId: state.pathParameters['campaignId']!,
-          draftId: state.pathParameters['draftId']!,
+          saleId: state.pathParameters['draftId']!,
+        ),
+      ),
+      GoRoute(
+        path: '/campaign/:campaignId/sales/checkout/:saleId',
+        builder: (context, state) => DirectSaleCheckoutPage(
+          campaignId: state.pathParameters['campaignId']!,
+          saleId: state.pathParameters['saleId']!,
         ),
       ),
       GoRoute(
@@ -138,9 +139,8 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/campaign/:campaignId/settings',
-        builder: (context, state) => SettingsPage(
-          campaignId: state.pathParameters['campaignId']!,
-        ),
+        builder: (context, state) =>
+            SettingsPage(campaignId: state.pathParameters['campaignId']!),
       ),
     ],
   );
@@ -151,9 +151,7 @@ class _SplashPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
-      body: Center(child: CircularProgressIndicator()),
-    );
+    return const Scaffold(body: Center(child: CircularProgressIndicator()));
   }
 }
 

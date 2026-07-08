@@ -26,7 +26,8 @@ public static class DefaultCampaignSettings
         =>
         [
             new("copper", 1),
-            new("silver", 100),
-            new("gold", 10000)
+            new("silver", 10),
+            new("gold", 100),
+            new("platinum", 1000)
         ];
 }

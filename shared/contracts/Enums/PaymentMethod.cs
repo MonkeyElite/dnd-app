@@ -5,6 +5,7 @@ namespace DndShop.Contracts;
 /// </summary>
 public enum PaymentMethod
 {
+    Coin,
     Gold,
     Barter,
     Credit,

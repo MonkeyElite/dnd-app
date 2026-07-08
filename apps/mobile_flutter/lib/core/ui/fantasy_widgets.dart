@@ -278,8 +278,8 @@ class CampaignHeroCard extends StatelessWidget {
                       ),
                       child: Padding(
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 13,
-                          vertical: 9,
+                          horizontal: 10,
+                          vertical: 8,
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
@@ -287,14 +287,15 @@ class CampaignHeroCard extends StatelessWidget {
                             const Icon(
                               Icons.person,
                               color: FantasyColors.teal,
-                              size: 18,
+                              size: 12,
                             ),
-                            const SizedBox(width: 7),
+                            const SizedBox(width: 4),
                             Text(
                               'Role: $role',
                               style: const TextStyle(
                                 color: FantasyColors.teal,
                                 fontWeight: FontWeight.w700,
+                                fontSize: 12,
                               ),
                             ),
                           ],

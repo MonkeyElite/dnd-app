@@ -13,6 +13,7 @@ public sealed class MediaObjectStorage(
     ILogger<MediaObjectStorage> logger) : IMediaObjectStorage
 {
     private readonly IMinioClient _minioClient = minioClient;
+    private readonly IMinioClient _publicPresignMinioClient = CreatePublicPresignClient(options.Value) ?? minioClient;
     private readonly IHttpClientFactory _httpClientFactory = httpClientFactory;
     private readonly S3StorageOptions _options = options.Value;
     private readonly ILogger<MediaObjectStorage> _logger = logger;
@@ -69,15 +70,14 @@ public sealed class MediaObjectStorage(
             ["Content-Type"] = contentType
         };
 
-        var url = await _minioClient
+        var presignClient = rewriteToPublicBaseUrl ? _publicPresignMinioClient : _minioClient;
+        return await presignClient
             .PresignedPutObjectAsync(new PresignedPutObjectArgs()
                 .WithBucket(_options.Bucket)
                 .WithObject(objectKey)
                 .WithExpiry(expiresInSeconds)
                 .WithHeaders(requestHeaders))
             .ConfigureAwait(false);
-
-        return rewriteToPublicBaseUrl ? RewriteToPublicBaseUrl(url) : url;
     }
 
     public async Task<string> CreatePresignedDownloadUrlAsync(
@@ -88,14 +88,13 @@ public sealed class MediaObjectStorage(
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        var url = await _minioClient
+        var presignClient = rewriteToPublicBaseUrl ? _publicPresignMinioClient : _minioClient;
+        return await presignClient
             .PresignedGetObjectAsync(new PresignedGetObjectArgs()
                 .WithBucket(_options.Bucket)
                 .WithObject(objectKey)
                 .WithExpiry(expiresInSeconds))
             .ConfigureAwait(false);
-
-        return rewriteToPublicBaseUrl ? RewriteToPublicBaseUrl(url) : url;
     }
 
     public async Task<StoredObjectInfo?> TryGetObjectInfoAsync(string objectKey, CancellationToken cancellationToken)
@@ -144,40 +143,34 @@ public sealed class MediaObjectStorage(
         return response;
     }
 
-    private string RewriteToPublicBaseUrl(string presignedUrl)
+    private static IMinioClient? CreatePublicPresignClient(S3StorageOptions options)
     {
-        if (string.IsNullOrWhiteSpace(_options.PublicBaseUrl))
+        if (string.IsNullOrWhiteSpace(options.PublicBaseUrl))
         {
-            return presignedUrl;
+            return null;
         }
 
-        if (!Uri.TryCreate(_options.PublicBaseUrl, UriKind.Absolute, out var publicBaseUri))
+        if (!Uri.TryCreate(options.PublicBaseUrl, UriKind.Absolute, out var publicBaseUri))
         {
-            _logger.LogWarning(
-                "Storage:S3:PublicBaseUrl '{PublicBaseUrl}' is invalid; returning original URL.",
-                _options.PublicBaseUrl);
-            return presignedUrl;
+            return null;
         }
 
-        if (!Uri.TryCreate(presignedUrl, UriKind.Absolute, out var originalUri))
+        var endpoint = publicBaseUri.IsDefaultPort
+            ? publicBaseUri.Host
+            : $"{publicBaseUri.Host}:{publicBaseUri.Port}";
+
+        var minioClient = new MinioClient()
+            .WithEndpoint(endpoint)
+            .WithCredentials(options.AccessKey, options.SecretKey)
+            .WithSSL(string.Equals(publicBaseUri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
+            .Build();
+
+        if (!string.IsNullOrWhiteSpace(options.Region))
         {
-            return presignedUrl;
+            minioClient = minioClient.WithRegion(options.Region);
         }
 
-        var builder = new UriBuilder(originalUri)
-        {
-            Scheme = publicBaseUri.Scheme,
-            Host = publicBaseUri.Host,
-            Port = publicBaseUri.IsDefaultPort ? -1 : publicBaseUri.Port
-        };
-
-        var basePath = publicBaseUri.AbsolutePath.TrimEnd('/');
-        if (!string.IsNullOrEmpty(basePath) && basePath != "/")
-        {
-            builder.Path = $"{basePath}/{originalUri.AbsolutePath.TrimStart('/')}";
-        }
-
-        return builder.Uri.ToString();
+        return minioClient;
     }
 
     private static bool IsNotFound(Exception exception)

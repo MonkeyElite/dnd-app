@@ -106,15 +106,6 @@ final class AppTheme {
         foregroundColor: Color(0xFFF4F1EA),
         extendedTextStyle: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
       ),
-      iconButtonTheme: IconButtonThemeData(
-        style: IconButton.styleFrom(
-          foregroundColor: const Color(0xFFF4F1EA),
-          backgroundColor: const Color(0x9907171D),
-          side: const BorderSide(color: border),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-          fixedSize: const Size.square(48),
-        ),
-      ),
       tabBarTheme: const TabBarThemeData(
         dividerColor: border,
         indicatorColor: seed,

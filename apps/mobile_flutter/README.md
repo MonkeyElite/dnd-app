@@ -47,6 +47,16 @@ flutter run -d <android-device-id>
 
 Use the Server Setup screen in the app to set and test the URL.
 
+For image uploads from a physical device, MinIO also needs to return a
+phone-reachable URL. In `deploy/docker-compose/.env`, set:
+
+```bash
+MINIO_PUBLIC_BASE_URL=http://<your-machine-lan-ip>:9000
+```
+
+Then restart the media service/container so new presigned upload URLs use that
+host.
+
 ## Dev Login
 Default dev admin from `.env.example`:
 - Username: `admin`

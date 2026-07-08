@@ -1,6 +1,7 @@
 import 'package:dnd_app/core/api/dio_provider.dart';
 import 'package:dnd_app/core/api/models/campaign_models.dart';
 import 'package:dnd_app/core/api/models/common_models.dart';
+import 'package:dnd_app/core/api/models/invite_models.dart';
 import 'package:dnd_app/core/auth/role_permissions.dart';
 import 'package:dnd_app/core/auth/session_controller.dart';
 import 'package:dnd_app/core/errors/app_exception.dart';
@@ -9,7 +10,9 @@ import 'package:dnd_app/features/campaigns/campaign_providers.dart';
 import 'package:dnd_app/features/settings/settings_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
 class SettingsPage extends ConsumerStatefulWidget {
@@ -25,7 +28,20 @@ class SettingsPage extends ConsumerStatefulWidget {
 }
 
 class _SettingsPageState extends ConsumerState<SettingsPage> {
+  static const _invitePageSize = 4;
   static const _inviteRoles = ['Member', 'Treasurer', 'ReadOnly', 'Admin'];
+  static const _memberRoles = ['Admin', 'Treasurer', 'Member', 'ReadOnly'];
+
+  final Map<String, String> _createdInviteCodes = {};
+  int _inviteTake = _invitePageSize;
+
+  CampaignInvitesPageArgs _invitePageArgs(String campaignId) {
+    return CampaignInvitesPageArgs(
+      campaignId: campaignId,
+      skip: 0,
+      take: _inviteTake,
+    );
+  }
 
   Future<void> _showCreateInviteDialog(CampaignSettingsPageDto page) async {
     var selectedRole = _inviteRoles.first;
@@ -126,12 +142,16 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       final expiresText = expiresInDaysController.text.trim();
       final expiresInDays = expiresText.isEmpty ? null : int.parse(expiresText);
 
-      final code = await ref.read(bffApiProvider).createInvite(
+      final invite = await ref.read(bffApiProvider).createInvite(
             campaignId: page.campaignId,
             role: selectedRole,
             maxUses: maxUses,
             expiresInDays: expiresInDays,
           );
+      if (invite.inviteId.isNotEmpty && invite.code.isNotEmpty) {
+        _createdInviteCodes[invite.inviteId] = invite.code;
+      }
+      ref.invalidate(campaignInvitesProvider(_invitePageArgs(page.campaignId)));
 
       if (!mounted) {
         return;
@@ -143,9 +163,16 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
           return AlertDialog(
             title: const Text('Invite Created'),
             content: SelectableText(
-              code.isEmpty ? 'Invite created. The API did not return a code.' : 'Invite Code: $code',
+              invite.code.isEmpty
+                  ? 'Invite created. The API did not return a code.'
+                  : 'Invite Code: ${invite.code}',
             ),
             actions: [
+              if (invite.code.isNotEmpty)
+                TextButton(
+                  onPressed: () => _copyInviteCode(invite.code),
+                  child: const Text('Copy Code'),
+                ),
               FilledButton(
                 onPressed: () => Navigator.of(context).pop(),
                 child: const Text('Close'),
@@ -340,6 +367,216 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     }
   }
 
+  Future<void> _revokeInvite(InviteSummaryDto invite) async {
+    final confirmed = await showConfirmDialog(
+      context: context,
+      title: 'Revoke Invite',
+      message: 'Revoke this ${invite.role} invite?',
+      confirmLabel: 'Revoke',
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      await ref.read(bffApiProvider).revokeInvite(
+            campaignId: widget.campaignId,
+            inviteId: invite.inviteId,
+          );
+
+      _createdInviteCodes.remove(invite.inviteId);
+      ref.invalidate(campaignInvitesProvider(_invitePageArgs(widget.campaignId)));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Invite revoked.')),
+        );
+      }
+    } catch (error) {
+      _showError(error, fallbackMessage: 'Unable to revoke invite.');
+    }
+  }
+
+  Future<void> _copyInviteCode(String code) async {
+    await Clipboard.setData(ClipboardData(text: code));
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Invite code copied.')),
+      );
+    }
+  }
+
+  Future<void> _updateMemberRole(CampaignSettingsMemberDto member, String role) async {
+    try {
+      await ref.read(bffApiProvider).updateMemberRole(
+            campaignId: widget.campaignId,
+            userId: member.userId,
+            role: role,
+          );
+
+      ref.invalidate(settingsPageProvider(widget.campaignId));
+      ref.invalidate(campaignHomePageProvider(widget.campaignId));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('${member.displayName} is now $role.')),
+        );
+      }
+    } catch (error) {
+      _showError(error, fallbackMessage: 'Unable to update member role.');
+    }
+  }
+
+  void _showError(Object error, {required String fallbackMessage}) {
+    if (!mounted) {
+      return;
+    }
+
+    final message = error is AppException ? error.message : fallbackMessage;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  String _inviteStatus(InviteSummaryDto invite) {
+    if (invite.revokedAt != null) {
+      return 'Revoked';
+    }
+
+    final expiresAt = invite.expiresAt;
+    if (expiresAt != null && expiresAt.isBefore(DateTime.now())) {
+      return 'Expired';
+    }
+
+    if (invite.uses >= invite.maxUses) {
+      return 'Used up';
+    }
+
+    return 'Active';
+  }
+
+  bool _canRevokeInvite(InviteSummaryDto invite) => _inviteStatus(invite) == 'Active';
+
+  String _formatDate(DateTime? date) {
+    if (date == null) {
+      return 'Never';
+    }
+
+    return DateFormat.yMMMd().add_Hm().format(date);
+  }
+
+  Widget _buildInvitesSection(CampaignSettingsPageDto page) {
+    final invitePageArgs = _invitePageArgs(page.campaignId);
+    final invites = ref.watch(campaignInvitesProvider(invitePageArgs));
+
+    return InfoCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Invites', style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 8),
+          SecondaryButton(
+            label: 'Create Invite',
+            onPressed: () => _showCreateInviteDialog(page),
+          ),
+          const SizedBox(height: 12),
+          invites.when(
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (error, _) {
+              final message = error is AppException ? error.message : 'Unable to load invites.';
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(message),
+                  const SizedBox(height: 8),
+                  SecondaryButton(
+                    label: 'Retry',
+                    onPressed: () => ref.invalidate(campaignInvitesProvider(invitePageArgs)),
+                  ),
+                ],
+              );
+            },
+            data: (invitePage) {
+              final items = invitePage.items;
+              if (items.isEmpty) {
+                return const Text('No invites created yet.');
+              }
+
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  ...items.map(
+                    (invite) => _InviteSummaryTile(
+                      invite: invite,
+                      status: _inviteStatus(invite),
+                      expiresAtText: _formatDate(invite.expiresAt),
+                      createdAtText: _formatDate(invite.createdAt),
+                      onCopyCode: _canRevokeInvite(invite) && _createdInviteCodes.containsKey(invite.inviteId)
+                          ? () => _copyInviteCode(_createdInviteCodes[invite.inviteId]!)
+                          : null,
+                      onRevoke: _canRevokeInvite(invite) ? () => _revokeInvite(invite) : null,
+                    ),
+                  ),
+                  if (items.length < invitePage.totalCount) ...[
+                    const SizedBox(height: 8),
+                    SecondaryButton(
+                      label: 'Show More',
+                      onPressed: () {
+                        setState(() {
+                          _inviteTake += _invitePageSize;
+                        });
+                      },
+                    ),
+                  ],
+                ],
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMemberTile({
+    required CampaignSettingsMemberDto member,
+    required bool canManageMembers,
+    required String? currentUserId,
+  }) {
+    final isCurrentUser = currentUserId != null && member.userId == currentUserId;
+    final role = member.role.trim();
+    final canEditRole = canManageMembers &&
+        !isCurrentUser &&
+        !member.isPlatformAdmin &&
+        role.toLowerCase() != 'owner';
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      child: ListTile(
+        leading: CircleAvatar(
+          child: Text(member.displayName.isEmpty ? '?' : member.displayName[0].toUpperCase()),
+        ),
+        title: Text(member.displayName),
+        subtitle: Text('${member.username} - ${member.role}'),
+        trailing: member.isPlatformAdmin
+            ? const Icon(Icons.verified, color: Color(0xFF0A6CD8))
+            : canEditRole
+                ? PopupMenuButton<String>(
+                    tooltip: 'Change role',
+                    icon: const Icon(Icons.manage_accounts_outlined),
+                    onSelected: (value) => _updateMemberRole(member, value),
+                    itemBuilder: (context) => _memberRoles
+                        .where((value) => value != member.role)
+                        .map(
+                          (value) => PopupMenuItem(
+                            value: value,
+                            child: Text(value),
+                          ),
+                        )
+                        .toList(),
+                  )
+                : null,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final page = ref.watch(settingsPageProvider(widget.campaignId));
@@ -355,6 +592,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
           final isPlatformAdmin = session.user?.isPlatformAdmin ?? false;
           final canManageSettings = isPlatformAdmin || canManageCampaignSettings(data.myRole);
           final canManageCampaignInvites = isPlatformAdmin || canManageInvites(data.myRole);
+          final currentUserId = session.user?.userId;
 
           return ListView(
             padding: const EdgeInsets.all(16),
@@ -399,19 +637,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                 ),
               if (canManageSettings) const SizedBox(height: 12),
               if (canManageCampaignInvites)
-                InfoCard(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Invites', style: Theme.of(context).textTheme.titleMedium),
-                      const SizedBox(height: 8),
-                      SecondaryButton(
-                        label: 'Create Invite',
-                        onPressed: () => _showCreateInviteDialog(data),
-                      ),
-                    ],
-                  ),
-                ),
+                _buildInvitesSection(data),
               if (canManageCampaignInvites) const SizedBox(height: 12),
               InfoCard(
                 child: Column(
@@ -452,18 +678,10 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
               Text('Members', style: Theme.of(context).textTheme.titleMedium),
               const SizedBox(height: 8),
               ...data.members.map(
-                (member) => Card(
-                  margin: const EdgeInsets.only(bottom: 8),
-                  child: ListTile(
-                    leading: CircleAvatar(
-                      child: Text(member.displayName.isEmpty ? '?' : member.displayName[0].toUpperCase()),
-                    ),
-                    title: Text(member.displayName),
-                    subtitle: Text('${member.username} • ${member.role}'),
-                    trailing: member.isPlatformAdmin
-                        ? const Icon(Icons.verified, color: Color(0xFF0A6CD8))
-                        : null,
-                  ),
+                (member) => _buildMemberTile(
+                  member: member,
+                  canManageMembers: canManageCampaignInvites,
+                  currentUserId: currentUserId,
                 ),
               ),
               const SizedBox(height: 8),
@@ -481,5 +699,78 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
         },
       ),
     );
+  }
+}
+
+class _InviteSummaryTile extends StatelessWidget {
+  const _InviteSummaryTile({
+    required this.invite,
+    required this.status,
+    required this.expiresAtText,
+    required this.createdAtText,
+    required this.onCopyCode,
+    required this.onRevoke,
+  });
+
+  final InviteSummaryDto invite;
+  final String status;
+  final String expiresAtText;
+  final String createdAtText;
+  final VoidCallback? onCopyCode;
+  final VoidCallback? onRevoke;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        ListTile(
+          contentPadding: EdgeInsets.zero,
+          leading: Icon(
+            _statusIcon(status),
+            color: status == 'Active' ? const Color(0xFF00C2A8) : null,
+          ),
+          title: Text('${invite.role} invite'),
+          subtitle: Text(
+            '$status - ${invite.uses}/${invite.maxUses} uses\n'
+            'Expires: $expiresAtText\n'
+            'Created: $createdAtText',
+          ),
+          isThreeLine: true,
+          trailing: onCopyCode == null && onRevoke == null
+              ? null
+              : Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (onCopyCode != null)
+                      IconButton(
+                        tooltip: 'Copy invite code',
+                        onPressed: onCopyCode,
+                        icon: const Icon(Icons.copy_outlined),
+                      ),
+                    if (onRevoke != null)
+                      IconButton(
+                        tooltip: 'Revoke invite',
+                        onPressed: onRevoke,
+                        icon: const Icon(Icons.block_outlined),
+                      ),
+                  ],
+                ),
+        ),
+        const Divider(),
+      ],
+    );
+  }
+
+  IconData _statusIcon(String status) {
+    switch (status) {
+      case 'Active':
+        return Icons.check_circle_outline;
+      case 'Revoked':
+        return Icons.block_outlined;
+      case 'Expired':
+        return Icons.schedule_outlined;
+      default:
+        return Icons.remove_circle_outline;
+    }
   }
 }

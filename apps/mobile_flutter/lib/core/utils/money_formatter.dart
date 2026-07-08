@@ -1,13 +1,12 @@
 import 'package:dnd_app/core/api/models/common_models.dart';
+import 'package:dnd_app/core/utils/currency_utils.dart';
 
 String formatMoneyMinorUnits(int amountMinor, CurrencyConfigDto currency) {
   final isNegative = amountMinor < 0;
   var remaining = amountMinor.abs();
 
-  final sorted = [...currency.denominations]..sort((a, b) => b.multiplier.compareTo(a.multiplier));
-
   final parts = <String>[];
-  for (final denomination in sorted) {
+  for (final denomination in sortedDenominations(currency)) {
     if (denomination.multiplier <= 0) {
       continue;
     }

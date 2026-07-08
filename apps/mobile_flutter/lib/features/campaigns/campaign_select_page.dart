@@ -57,7 +57,7 @@ class CampaignSelectPage extends ConsumerWidget {
                   onTap: () async {
                     await ref.read(sessionControllerProvider.notifier).selectCampaign(campaign.campaignId);
                     if (context.mounted) {
-                      context.push('/campaign/${campaign.campaignId}/home');
+                      context.go('/campaign/${campaign.campaignId}/home');
                     }
                   },
                 ),
@@ -141,7 +141,7 @@ class CampaignSelectPage extends ConsumerWidget {
       ref.invalidate(campaignsPageProvider(noArgs));
 
       if (context.mounted) {
-        context.push('/campaign/$campaignId/home');
+        context.go('/campaign/$campaignId/home');
       }
     } catch (error) {
       if (!context.mounted) {

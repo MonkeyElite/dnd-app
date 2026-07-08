@@ -6,6 +6,8 @@ import 'package:dnd_app/core/errors/app_exception.dart';
 import 'package:dnd_app/core/ui/ui.dart';
 import 'package:dnd_app/core/utils/money_formatter.dart';
 import 'package:dnd_app/features/campaigns/campaign_providers.dart';
+import 'package:dnd_app/features/catalog/catalog_image_upload.dart';
+import 'package:dnd_app/features/catalog/catalog_item_form_dialog.dart';
 import 'package:dnd_app/features/catalog/catalog_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -176,221 +178,38 @@ class _CatalogListPageState extends ConsumerState<CatalogListPage> {
       return;
     }
 
-    final formKey = GlobalKey<FormState>();
-    final nameController = TextEditingController();
-    final descriptionController = TextEditingController();
-    final baseValueController = TextEditingController(text: '0');
-    final defaultListPriceController = TextEditingController();
-    final weightController = TextEditingController();
-    var categoryId = page.filters.categories.first.categoryId;
-    var unitId = page.filters.units.first.unitId;
-
-    final submit = await showDialog<bool>(
+    final result = await showCatalogItemFormDialog(
       context: context,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            final mediaQuery = MediaQuery.of(context);
-            final availableHeight =
-                mediaQuery.size.height -
-                mediaQuery.viewInsets.bottom -
-                mediaQuery.padding.vertical -
-                220;
-            final contentHeight = availableHeight
-                .clamp(260.0, 520.0)
-                .toDouble();
-
-            return AlertDialog(
-              insetPadding: const EdgeInsets.symmetric(
-                horizontal: 20,
-                vertical: 24,
-              ),
-              clipBehavior: Clip.antiAlias,
-              title: const Text('Create Item'),
-              content: Form(
-                key: formKey,
-                child: SizedBox(
-                  width: double.maxFinite,
-                  height: contentHeight,
-                  child: Scrollbar(
-                    child: SingleChildScrollView(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          RoundedTextField(
-                            controller: nameController,
-                            label: 'Name',
-                            validator: (value) =>
-                                (value == null || value.trim().isEmpty)
-                                ? 'Name is required.'
-                                : null,
-                          ),
-                          const SizedBox(height: 8),
-                          RoundedTextField(
-                            controller: descriptionController,
-                            label: 'Description',
-                          ),
-                          const SizedBox(height: 8),
-                          DropdownButtonFormField<String>(
-                            initialValue: categoryId,
-                            decoration: const InputDecoration(
-                              labelText: 'Category',
-                            ),
-                            items: page.filters.categories
-                                .map(
-                                  (category) => DropdownMenuItem(
-                                    value: category.categoryId,
-                                    child: Text(category.name),
-                                  ),
-                                )
-                                .toList(),
-                            onChanged: (value) {
-                              if (value == null) {
-                                return;
-                              }
-
-                              setDialogState(() => categoryId = value);
-                            },
-                          ),
-                          const SizedBox(height: 8),
-                          DropdownButtonFormField<String>(
-                            initialValue: unitId,
-                            decoration: const InputDecoration(
-                              labelText: 'Unit',
-                            ),
-                            items: page.filters.units
-                                .map(
-                                  (unit) => DropdownMenuItem(
-                                    value: unit.unitId,
-                                    child: Text(unit.name),
-                                  ),
-                                )
-                                .toList(),
-                            onChanged: (value) {
-                              if (value == null) {
-                                return;
-                              }
-
-                              setDialogState(() => unitId = value);
-                            },
-                          ),
-                          const SizedBox(height: 8),
-                          RoundedTextField(
-                            controller: baseValueController,
-                            label: 'Base Value (minor)',
-                            keyboardType: TextInputType.number,
-                            validator: (value) {
-                              final parsed = int.tryParse(value?.trim() ?? '');
-                              if (parsed == null || parsed < 0) {
-                                return 'Base value must be >= 0.';
-                              }
-
-                              return null;
-                            },
-                          ),
-                          const SizedBox(height: 8),
-                          RoundedTextField(
-                            controller: defaultListPriceController,
-                            label: 'List Price (minor, optional)',
-                            keyboardType: TextInputType.number,
-                            validator: (value) {
-                              final text = value?.trim() ?? '';
-                              if (text.isEmpty) {
-                                return null;
-                              }
-
-                              final parsed = int.tryParse(text);
-                              if (parsed == null || parsed < 0) {
-                                return 'List price must be >= 0.';
-                              }
-
-                              return null;
-                            },
-                          ),
-                          const SizedBox(height: 8),
-                          RoundedTextField(
-                            controller: weightController,
-                            label: 'Weight (optional)',
-                            keyboardType: const TextInputType.numberWithOptions(
-                              decimal: true,
-                            ),
-                            validator: (value) {
-                              final text = value?.trim() ?? '';
-                              if (text.isEmpty) {
-                                return null;
-                              }
-
-                              final parsed = double.tryParse(text);
-                              if (parsed == null || parsed < 0) {
-                                return 'Weight must be >= 0.';
-                              }
-
-                              return null;
-                            },
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              actions: [
-                TextButton(
-                  style: TextButton.styleFrom(
-                    fixedSize: const Size(88, 40),
-                    padding: EdgeInsets.zero,
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  ),
-                  onPressed: () => Navigator.of(context).pop(false),
-                  child: const Text('Cancel'),
-                ),
-                FilledButton(
-                  style: FilledButton.styleFrom(
-                    fixedSize: const Size(102, 40),
-                    padding: EdgeInsets.zero,
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  ),
-                  onPressed: () {
-                    if (!formKey.currentState!.validate()) {
-                      return;
-                    }
-
-                    Navigator.of(context).pop(true);
-                  },
-                  child: const Text('Create'),
-                ),
-              ],
-            );
-          },
-        );
-      },
+      page: page,
     );
 
-    if (submit != true) {
+    if (result == null) {
       return;
     }
 
     try {
-      final listPriceText = defaultListPriceController.text.trim();
-      final weightText = weightController.text.trim();
+      final imageAssetId = result.selectedImage == null
+          ? result.imageAssetId
+          : await CatalogImageUploadService(
+              ref.read(bffApiProvider),
+            ).uploadCatalogItemImage(
+              campaignId: widget.campaignId,
+              file: result.selectedImage!,
+            );
 
       await ref
           .read(bffApiProvider)
           .createCatalogItem(
             campaignId: widget.campaignId,
-            name: nameController.text.trim(),
-            description: descriptionController.text.trim().isEmpty
-                ? null
-                : descriptionController.text.trim(),
-            categoryId: categoryId,
-            unitId: unitId,
-            baseValueMinor: int.parse(baseValueController.text.trim()),
-            defaultListPriceMinor: listPriceText.isEmpty
-                ? null
-                : int.parse(listPriceText),
-            weight: weightText.isEmpty ? null : double.parse(weightText),
-            tagIds: const [],
+            name: result.name,
+            description: result.description,
+            categoryId: result.categoryId,
+            unitId: result.unitId,
+            baseValueMinor: result.baseValueMinor,
+            defaultListPriceMinor: result.defaultListPriceMinor,
+            weight: result.weight,
+            imageAssetId: imageAssetId,
+            tagIds: result.tagIds,
           );
 
       if (mounted) {

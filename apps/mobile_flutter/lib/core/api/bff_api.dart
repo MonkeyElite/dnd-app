@@ -4,22 +4,17 @@ import 'package:dnd_app/core/errors/app_exception.dart';
 import 'package:dnd_app/core/errors/error_mapper.dart';
 
 class BffApi {
-  BffApi(
-    this._dio, {
-    required Future<void> Function() onUnauthorized,
-  }) : _onUnauthorized = onUnauthorized;
+  BffApi(this._dio, {required Future<void> Function() onUnauthorized})
+    : _onUnauthorized = onUnauthorized;
 
   final Dio _dio;
   final Future<void> Function() _onUnauthorized;
 
   Future<Map<String, String>> testConnection() async {
-    return _request(
-      () => _dio.get('/api/v1/health'),
-      (data) {
-        final map = _asMap(data);
-        return map.map((key, value) => MapEntry(key, value.toString()));
-      },
-    );
+    return _request(() => _dio.get('/api/v1/health'), (data) {
+      final map = _asMap(data);
+      return map.map((key, value) => MapEntry(key, value.toString()));
+    });
   }
 
   Future<AuthResponseDto> login(LoginRequestDto request) async {
@@ -29,9 +24,14 @@ class BffApi {
     );
   }
 
-  Future<AuthResponseDto> registerWithInvite(RegisterInviteRequestDto request) async {
+  Future<AuthResponseDto> registerWithInvite(
+    RegisterInviteRequestDto request,
+  ) async {
     return _request(
-      () => _dio.post('/api/v1/actions/auth/register-invite', data: request.toJson()),
+      () => _dio.post(
+        '/api/v1/actions/auth/register-invite',
+        data: request.toJson(),
+      ),
       (data) => AuthResponseDto.fromJson(_asMap(data)),
     );
   }
@@ -50,10 +50,7 @@ class BffApi {
     return _request(
       () => _dio.post(
         '/api/v1/pages/campaigns',
-        data: {
-          'name': name,
-          'description': description,
-        },
+        data: {'name': name, 'description': description},
       ),
       (data) {
         final map = _asMap(data);
@@ -78,8 +75,10 @@ class BffApi {
       () => _dio.get(
         '/api/v1/pages/campaign/$campaignId/catalog',
         queryParameters: {
-          if (search != null && search.trim().isNotEmpty) 'search': search.trim(),
-          if (categoryId != null && categoryId.isNotEmpty) 'categoryId': categoryId,
+          if (search != null && search.trim().isNotEmpty)
+            'search': search.trim(),
+          if (categoryId != null && categoryId.isNotEmpty)
+            'categoryId': categoryId,
           'archived': 'IncludeArchived',
         },
       ),
@@ -87,7 +86,10 @@ class BffApi {
     );
   }
 
-  Future<CatalogItemPageDto> getCatalogItemPage(String campaignId, String itemId) async {
+  Future<CatalogItemPageDto> getCatalogItemPage(
+    String campaignId,
+    String itemId,
+  ) async {
     return _request(
       () => _dio.get('/api/v1/pages/campaign/$campaignId/catalog/item/$itemId'),
       (data) => CatalogItemPageDto.fromJson(_asMap(data)),
@@ -105,15 +107,19 @@ class BffApi {
         '/api/v1/pages/campaign/$campaignId/inventory/summary',
         queryParameters: {
           if (placeId != null && placeId.isNotEmpty) 'placeId': placeId,
-          if (storageLocationId != null && storageLocationId.isNotEmpty) 'storageLocationId': storageLocationId,
-          if (search != null && search.trim().isNotEmpty) 'search': search.trim(),
+          if (storageLocationId != null && storageLocationId.isNotEmpty)
+            'storageLocationId': storageLocationId,
+          if (search != null && search.trim().isNotEmpty)
+            'search': search.trim(),
         },
       ),
       (data) => InventoryPageDto.fromJson(_asMap(data)),
     );
   }
 
-  Future<InventoryLocationsPageDto> getInventoryLocationsPage(String campaignId) async {
+  Future<InventoryLocationsPageDto> getInventoryLocationsPage(
+    String campaignId,
+  ) async {
     return _request(
       () => _dio.get('/api/v1/pages/campaign/$campaignId/inventory/locations'),
       (data) => InventoryLocationsPageDto.fromJson(_asMap(data)),
@@ -125,7 +131,9 @@ class BffApi {
     String locationId,
   ) async {
     return _request(
-      () => _dio.get('/api/v1/pages/campaign/$campaignId/inventory/location/$locationId'),
+      () => _dio.get(
+        '/api/v1/pages/campaign/$campaignId/inventory/location/$locationId',
+      ),
       (data) => InventoryLocationDetailPageDto.fromJson(_asMap(data)),
     );
   }
@@ -137,14 +145,20 @@ class BffApi {
     );
   }
 
-  Future<SalesDraftPageDto> getSalesDraftPage(String campaignId, String draftId) async {
+  Future<SalesDraftPageDto> getSalesDraftPage(
+    String campaignId,
+    String draftId,
+  ) async {
     return _request(
       () => _dio.get('/api/v1/pages/campaign/$campaignId/sales/draft/$draftId'),
       (data) => SalesDraftPageDto.fromJson(_asMap(data)),
     );
   }
 
-  Future<SalesReceiptPageDto> getSalesReceiptPage(String campaignId, String saleId) async {
+  Future<SalesReceiptPageDto> getSalesReceiptPage(
+    String campaignId,
+    String saleId,
+  ) async {
     return _request(
       () => _dio.get('/api/v1/pages/campaign/$campaignId/sales/$saleId'),
       (data) => SalesReceiptPageDto.fromJson(_asMap(data)),
@@ -158,7 +172,7 @@ class BffApi {
     );
   }
 
-  Future<String> createInvite({
+  Future<CreateInviteResultDto> createInvite({
     required String campaignId,
     required String role,
     required int maxUses,
@@ -176,8 +190,52 @@ class BffApi {
       ),
       (data) {
         final map = _asMap(data);
-        return map['code']?.toString() ?? '';
+        return CreateInviteResultDto.fromJson(map);
       },
+    );
+  }
+
+  Future<InviteSummaryPageDto> getInvitesPage(
+    String campaignId, {
+    required int skip,
+    required int take,
+  }) async {
+    return _request(
+      () => _dio.get(
+        '/api/v1/actions/invites',
+        queryParameters: {'campaignId': campaignId, 'skip': skip, 'take': take},
+      ),
+      (data) => InviteSummaryPageDto.fromJson(_asMap(data)),
+    );
+  }
+
+  Future<bool> revokeInvite({
+    required String campaignId,
+    required String inviteId,
+  }) async {
+    return _request(
+      () => _dio.post(
+        '/api/v1/actions/invites/$inviteId/revoke',
+        data: {'campaignId': campaignId},
+      ),
+      (data) {
+        final map = _asMap(data);
+        return map['revoked'] == true;
+      },
+    );
+  }
+
+  Future<void> updateMemberRole({
+    required String campaignId,
+    required String userId,
+    required String role,
+  }) async {
+    await _request<bool>(
+      () => _dio.put(
+        '/api/v1/actions/members/$userId/role',
+        data: {'campaignId': campaignId, 'role': role},
+      ),
+      (_) => true,
     );
   }
 
@@ -188,10 +246,7 @@ class BffApi {
     return _request(
       () => _dio.put(
         '/api/v1/actions/campaign-settings/calendar',
-        data: {
-          'campaignId': campaignId,
-          'calendar': calendar.toJson(),
-        },
+        data: {'campaignId': campaignId, 'calendar': calendar.toJson()},
       ),
       (data) {
         final map = _asMap(data);
@@ -207,10 +262,7 @@ class BffApi {
     return _request(
       () => _dio.put(
         '/api/v1/actions/campaign-settings/currency',
-        data: {
-          'campaignId': campaignId,
-          'currency': currency.toJson(),
-        },
+        data: {'campaignId': campaignId, 'currency': currency.toJson()},
       ),
       (data) {
         final map = _asMap(data);
@@ -226,10 +278,7 @@ class BffApi {
     return _request(
       () => _dio.post(
         '/api/v1/actions/categories',
-        data: {
-          'campaignId': campaignId,
-          'name': name,
-        },
+        data: {'campaignId': campaignId, 'name': name},
       ),
       (data) {
         final map = _asMap(data);
@@ -245,10 +294,7 @@ class BffApi {
     return _request(
       () => _dio.post(
         '/api/v1/actions/units',
-        data: {
-          'campaignId': campaignId,
-          'name': name,
-        },
+        data: {'campaignId': campaignId, 'name': name},
       ),
       (data) {
         final map = _asMap(data);
@@ -264,10 +310,7 @@ class BffApi {
     return _request(
       () => _dio.post(
         '/api/v1/actions/tags',
-        data: {
-          'campaignId': campaignId,
-          'name': name,
-        },
+        data: {'campaignId': campaignId, 'name': name},
       ),
       (data) {
         final map = _asMap(data);
@@ -311,6 +354,42 @@ class BffApi {
     );
   }
 
+  Future<bool> updateCatalogItem({
+    required String campaignId,
+    required String itemId,
+    required String name,
+    required String categoryId,
+    required String unitId,
+    required int baseValueMinor,
+    int? defaultListPriceMinor,
+    String? description,
+    double? weight,
+    String? imageAssetId,
+    List<String>? tagIds,
+  }) async {
+    return _request(
+      () => _dio.put(
+        '/api/v1/actions/items/$itemId',
+        data: {
+          'campaignId': campaignId,
+          'name': name,
+          'description': description,
+          'categoryId': categoryId,
+          'unitId': unitId,
+          'baseValueMinor': baseValueMinor,
+          'defaultListPriceMinor': defaultListPriceMinor,
+          'weight': weight,
+          'imageAssetId': imageAssetId,
+          'tagIds': tagIds ?? <String>[],
+        },
+      ),
+      (data) {
+        final map = _asMap(data);
+        return map['updated'] == true;
+      },
+    );
+  }
+
   Future<bool> setCatalogItemArchived({
     required String campaignId,
     required String itemId,
@@ -319,10 +398,7 @@ class BffApi {
     return _request(
       () => _dio.post(
         '/api/v1/actions/items/$itemId/archive',
-        data: {
-          'campaignId': campaignId,
-          'isArchived': isArchived,
-        },
+        data: {'campaignId': campaignId, 'isArchived': isArchived},
       ),
       (data) {
         final map = _asMap(data);
@@ -424,16 +500,61 @@ class BffApi {
     );
   }
 
-  Future<SalesDraftCreateResponseDto> createDraftSale(SalesDraftCreateRequestDto request) async {
+  Future<SalesDraftCreateResponseDto> createDraftSale(
+    SalesDraftCreateRequestDto request,
+  ) async {
     return _request(
-      () => _dio.post('/api/v1/actions/sales/draft/create', data: request.toJson()),
+      () => _dio.post(
+        '/api/v1/actions/sales/draft/create',
+        data: request.toJson(),
+      ),
       (data) => SalesDraftCreateResponseDto.fromJson(_asMap(data)),
     );
   }
 
-  Future<SalesDraftMutationResponseDto> addDraftSaleLine(SalesDraftAddLineRequestDto request) async {
+  Future<SalesCreateResponseDto> createSale(
+    SalesCreateActionRequestDto request,
+  ) async {
     return _request(
-      () => _dio.post('/api/v1/actions/sales/draft/add-line', data: request.toJson()),
+      () => _dio.post('/api/v1/actions/sales', data: request.toJson()),
+      (data) => SalesCreateResponseDto.fromJson(_asMap(data)),
+    );
+  }
+
+  Future<void> updateSale({
+    required String saleId,
+    required SalesUpdateActionRequestDto request,
+  }) async {
+    await _request<bool>(
+      () => _dio.put('/api/v1/actions/sales/$saleId', data: request.toJson()),
+      (_) => true,
+    );
+  }
+
+  Future<String> completeSale({
+    required String saleId,
+    required SalesCompleteActionRequestDto request,
+  }) async {
+    return _request(
+      () => _dio.post(
+        '/api/v1/actions/sales/$saleId/complete',
+        data: request.toJson(),
+      ),
+      (data) {
+        final map = _asMap(data);
+        return map['status']?.toString() ?? '';
+      },
+    );
+  }
+
+  Future<SalesDraftMutationResponseDto> addDraftSaleLine(
+    SalesDraftAddLineRequestDto request,
+  ) async {
+    return _request(
+      () => _dio.post(
+        '/api/v1/actions/sales/draft/add-line',
+        data: request.toJson(),
+      ),
       (data) => SalesDraftMutationResponseDto.fromJson(_asMap(data)),
     );
   }
@@ -442,7 +563,10 @@ class BffApi {
     SalesDraftUpdateLineRequestDto request,
   ) async {
     return _request(
-      () => _dio.post('/api/v1/actions/sales/draft/update-line', data: request.toJson()),
+      () => _dio.post(
+        '/api/v1/actions/sales/draft/update-line',
+        data: request.toJson(),
+      ),
       (data) => SalesDraftMutationResponseDto.fromJson(_asMap(data)),
     );
   }
@@ -451,7 +575,10 @@ class BffApi {
     SalesDraftRemoveLineRequestDto request,
   ) async {
     return _request(
-      () => _dio.post('/api/v1/actions/sales/draft/remove-line', data: request.toJson()),
+      () => _dio.post(
+        '/api/v1/actions/sales/draft/remove-line',
+        data: request.toJson(),
+      ),
       (data) => SalesDraftMutationResponseDto.fromJson(_asMap(data)),
     );
   }
@@ -460,7 +587,10 @@ class BffApi {
     SalesDraftCompleteRequestDto request,
   ) async {
     return _request(
-      () => _dio.post('/api/v1/actions/sales/draft/complete', data: request.toJson()),
+      () => _dio.post(
+        '/api/v1/actions/sales/draft/complete',
+        data: request.toJson(),
+      ),
       (data) => SalesDraftCompleteResponseDto.fromJson(_asMap(data)),
     );
   }
@@ -473,10 +603,7 @@ class BffApi {
     return _request(
       () => _dio.post(
         '/api/v1/actions/sales/$saleId/void',
-        data: {
-          'campaignId': campaignId,
-          'reason': reason,
-        },
+        data: {'campaignId': campaignId, 'reason': reason},
       ),
       (data) {
         final map = _asMap(data);
@@ -485,16 +612,24 @@ class BffApi {
     );
   }
 
-  Future<CreateUploadResponseDto> requestUpload(RequestUploadActionDto request) async {
+  Future<CreateUploadResponseDto> requestUpload(
+    RequestUploadActionDto request,
+  ) async {
     return _request(
-      () => _dio.post('/api/v1/actions/media/request-upload', data: request.toJson()),
+      () => _dio.post(
+        '/api/v1/actions/media/request-upload',
+        data: request.toJson(),
+      ),
       (data) => CreateUploadResponseDto.fromJson(_asMap(data)),
     );
   }
 
   Future<void> confirmUpload(ConfirmUploadActionDto request) async {
     await _request<bool>(
-      () => _dio.post('/api/v1/actions/media/confirm-upload', data: request.toJson()),
+      () => _dio.post(
+        '/api/v1/actions/media/confirm-upload',
+        data: request.toJson(),
+      ),
       (_) => true,
     );
   }
@@ -507,7 +642,10 @@ class BffApi {
       final response = await call();
       return parse(response.data);
     } on DioException catch (exception) {
-      throw ErrorMapper.mapDioException(exception, onUnauthorized: _onUnauthorized);
+      throw ErrorMapper.mapDioException(
+        exception,
+        onUnauthorized: _onUnauthorized,
+      );
     } catch (_) {
       throw const AppException(
         type: AppExceptionType.unknown,

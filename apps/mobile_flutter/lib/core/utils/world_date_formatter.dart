@@ -8,22 +8,27 @@ String formatWorldDate({
     return 'Day $worldDay';
   }
 
-  var remaining = worldDay;
-  for (final month in calendar.months) {
-    if (remaining < month.days) {
-      final dayOfMonth = remaining + 1;
-      final weekDay = (worldDay % calendar.weekLength) + 1;
-      return '${month.name} $dayOfMonth, week day $weekDay';
-    }
-
-    remaining -= month.days;
-  }
-
-  final totalDaysInYear = calendar.months.fold<int>(0, (sum, month) => sum + month.days);
+  final totalDaysInYear = calendar.months.fold<int>(
+    0,
+    (sum, month) => sum + month.days,
+  );
   if (totalDaysInYear <= 0) {
     return 'Day $worldDay';
   }
 
-  final wrappedDay = worldDay % totalDaysInYear;
-  return formatWorldDate(worldDay: wrappedDay, calendar: calendar);
+  final year = (worldDay ~/ totalDaysInYear) + 1;
+  final dayOfYear = worldDay % totalDaysInYear;
+  var remaining = dayOfYear;
+  for (final month in calendar.months) {
+    if (remaining < month.days) {
+      final dayOfMonth = remaining + 1;
+      final weekDay = calendar.weekLength <= 0
+          ? 1
+          : (worldDay % calendar.weekLength) + 1;
+      return 'Year $year, ${month.name} $dayOfMonth, week day $weekDay';
+    }
+
+    remaining -= month.days;
+  }
+  return 'Day $worldDay';
 }

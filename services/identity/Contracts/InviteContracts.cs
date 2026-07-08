@@ -13,4 +13,10 @@ public sealed record InviteSummaryResponse(
     DateTimeOffset? RevokedAt,
     DateTimeOffset CreatedAt);
 
+public sealed record InviteSummaryPageResponse(
+    IReadOnlyList<InviteSummaryResponse> Items,
+    int TotalCount,
+    int Skip,
+    int Take);
+
 public sealed record RevokeInviteResponse(bool Revoked);

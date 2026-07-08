@@ -4,10 +4,7 @@ part 'sales_models.g.dart';
 
 @JsonSerializable()
 class SalesPageFilterCustomerDto {
-  SalesPageFilterCustomerDto({
-    required this.customerId,
-    required this.name,
-  });
+  SalesPageFilterCustomerDto({required this.customerId, required this.name});
 
   final String customerId;
   final String name;
@@ -78,17 +75,16 @@ class SalePageFilterStorageLocationDto {
   final String storageLocationId;
   final String name;
 
-  factory SalePageFilterStorageLocationDto.fromJson(Map<String, dynamic> json) =>
-      _$SalePageFilterStorageLocationDtoFromJson(json);
-  Map<String, dynamic> toJson() => _$SalePageFilterStorageLocationDtoToJson(this);
+  factory SalePageFilterStorageLocationDto.fromJson(
+    Map<String, dynamic> json,
+  ) => _$SalePageFilterStorageLocationDtoFromJson(json);
+  Map<String, dynamic> toJson() =>
+      _$SalePageFilterStorageLocationDtoToJson(this);
 }
 
 @JsonSerializable()
 class SalePageFiltersDto {
-  SalePageFiltersDto({
-    required this.customers,
-    required this.storageLocations,
-  });
+  SalePageFiltersDto({required this.customers, required this.storageLocations});
 
   final List<SalesPageFilterCustomerDto> customers;
   final List<SalePageFilterStorageLocationDto> storageLocations;
@@ -375,10 +371,7 @@ class SalesDraftCompleteRequestDto {
 
 @JsonSerializable()
 class SalesDraftMutationResponseDto {
-  SalesDraftMutationResponseDto({
-    required this.draftId,
-    required this.updated,
-  });
+  SalesDraftMutationResponseDto({required this.draftId, required this.updated});
 
   final String draftId;
   final bool updated;
@@ -390,10 +383,7 @@ class SalesDraftMutationResponseDto {
 
 @JsonSerializable()
 class SalesDraftCompleteResponseDto {
-  SalesDraftCompleteResponseDto({
-    required this.saleId,
-    required this.status,
-  });
+  SalesDraftCompleteResponseDto({required this.saleId, required this.status});
 
   final String saleId;
   final String status;
@@ -401,4 +391,127 @@ class SalesDraftCompleteResponseDto {
   factory SalesDraftCompleteResponseDto.fromJson(Map<String, dynamic> json) =>
       _$SalesDraftCompleteResponseDtoFromJson(json);
   Map<String, dynamic> toJson() => _$SalesDraftCompleteResponseDtoToJson(this);
+}
+
+class SalesCreateResponseDto {
+  SalesCreateResponseDto({required this.saleId});
+
+  final String saleId;
+
+  factory SalesCreateResponseDto.fromJson(Map<String, dynamic> json) {
+    return SalesCreateResponseDto(saleId: json['saleId']?.toString() ?? '');
+  }
+}
+
+class SalesCreateActionRequestDto {
+  SalesCreateActionRequestDto({
+    required this.campaignId,
+    required this.soldWorldDay,
+    required this.storageLocationId,
+    required this.customerId,
+    required this.notes,
+  });
+
+  final String campaignId;
+  final int soldWorldDay;
+  final String storageLocationId;
+  final String? customerId;
+  final String? notes;
+
+  Map<String, dynamic> toJson() => {
+    'campaignId': campaignId,
+    'soldWorldDay': soldWorldDay,
+    'storageLocationId': storageLocationId,
+    'customerId': customerId,
+    'notes': notes,
+  };
+}
+
+class SalesUpdateActionRequestDto {
+  SalesUpdateActionRequestDto({
+    required this.campaignId,
+    required this.soldWorldDay,
+    required this.storageLocationId,
+    required this.customerId,
+    required this.notes,
+    required this.lines,
+    required this.payments,
+  });
+
+  final String campaignId;
+  final int soldWorldDay;
+  final String storageLocationId;
+  final String? customerId;
+  final String? notes;
+  final List<SalesUpdateLineActionRequestDto> lines;
+  final List<SalesUpdatePaymentActionRequestDto> payments;
+
+  Map<String, dynamic> toJson() => {
+    'campaignId': campaignId,
+    'soldWorldDay': soldWorldDay,
+    'storageLocationId': storageLocationId,
+    'customerId': customerId,
+    'notes': notes,
+    'lines': lines.map((line) => line.toJson()).toList(),
+    'payments': payments.map((payment) => payment.toJson()).toList(),
+  };
+}
+
+class SalesUpdateLineActionRequestDto {
+  SalesUpdateLineActionRequestDto({
+    required this.saleLineId,
+    required this.itemId,
+    required this.quantity,
+    required this.unitSoldPriceMinor,
+    required this.unitTrueValueMinor,
+    required this.discountMinor,
+    required this.notes,
+  });
+
+  final String? saleLineId;
+  final String itemId;
+  final double quantity;
+  final int unitSoldPriceMinor;
+  final int? unitTrueValueMinor;
+  final int discountMinor;
+  final String? notes;
+
+  Map<String, dynamic> toJson() => {
+    'saleLineId': saleLineId,
+    'itemId': itemId,
+    'quantity': quantity,
+    'unitSoldPriceMinor': unitSoldPriceMinor,
+    'unitTrueValueMinor': unitTrueValueMinor,
+    'discountMinor': discountMinor,
+    'notes': notes,
+  };
+}
+
+class SalesUpdatePaymentActionRequestDto {
+  SalesUpdatePaymentActionRequestDto({
+    required this.paymentId,
+    required this.method,
+    required this.amountMinor,
+    required this.details,
+  });
+
+  final String? paymentId;
+  final String method;
+  final int amountMinor;
+  final Object? details;
+
+  Map<String, dynamic> toJson() => {
+    'paymentId': paymentId,
+    'method': method,
+    'amountMinor': amountMinor,
+    'details': details,
+  };
+}
+
+class SalesCompleteActionRequestDto {
+  SalesCompleteActionRequestDto({required this.campaignId});
+
+  final String campaignId;
+
+  Map<String, dynamic> toJson() => {'campaignId': campaignId};
 }

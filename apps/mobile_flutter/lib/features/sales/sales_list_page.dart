@@ -1,8 +1,12 @@
 import 'package:dnd_app/core/errors/app_exception.dart';
+import 'package:dnd_app/core/api/models/common_models.dart';
 import 'package:dnd_app/core/api/models/sales_models.dart';
 import 'package:dnd_app/core/auth/role_permissions.dart';
 import 'package:dnd_app/core/auth/session_controller.dart';
 import 'package:dnd_app/core/ui/ui.dart';
+import 'package:dnd_app/core/utils/currency_utils.dart';
+import 'package:dnd_app/core/utils/money_formatter.dart';
+import 'package:dnd_app/core/utils/world_date_formatter.dart';
 import 'package:dnd_app/features/campaigns/campaign_providers.dart';
 import 'package:dnd_app/features/sales/sales_providers.dart';
 import 'package:flutter/material.dart';
@@ -18,10 +22,14 @@ class SalesListPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final page = ref.watch(salesPageProvider(campaignId));
     final homePage = ref.watch(campaignHomePageProvider(campaignId));
+    final home = homePage.valueOrNull;
+    final salesCurrency = home?.currency == null
+        ? null
+        : currencyWithDndCoinFallbacks(home!.currency);
     final session = ref.watch(sessionControllerProvider);
     final canWrite =
         (session.user?.isPlatformAdmin ?? false) ||
-        isCampaignWriteRole(homePage.valueOrNull?.myRole);
+        isCampaignWriteRole(home?.myRole);
 
     ref.listen<AsyncValue<void>>(salesDraftControllerProvider, (
       previous,
@@ -45,7 +53,7 @@ class SalesListPage extends ConsumerWidget {
         title: 'Sales',
         actions: [
           IconButton(
-            onPressed: () => context.push('/campaign/$campaignId/home'),
+            onPressed: () => context.go('/campaign/$campaignId/home'),
             icon: const Icon(Icons.home_outlined),
           ),
         ],
@@ -55,10 +63,10 @@ class SalesListPage extends ConsumerWidget {
                   try {
                     final draftId = await ref
                         .read(salesDraftControllerProvider.notifier)
-                        .createDraft(campaignId);
+                        .createDirectSale(campaignId);
                     if (context.mounted) {
                       context.push(
-                        '/campaign/$campaignId/sales/draft/$draftId',
+                        '/campaign/$campaignId/sales/checkout/$draftId',
                       );
                     }
                   } catch (_) {
@@ -66,7 +74,7 @@ class SalesListPage extends ConsumerWidget {
                   }
                 },
                 icon: const Icon(Icons.add),
-                label: const Text('New Draft'),
+                label: const Text('New Sale'),
                 extendedPadding: const EdgeInsets.symmetric(horizontal: 26),
               )
             : null,
@@ -123,6 +131,8 @@ class SalesListPage extends ConsumerWidget {
                       _SalesTabList(
                         campaignId: campaignId,
                         rows: drafts,
+                        currency: salesCurrency,
+                        calendar: home?.calendar,
                         emptyTitle: 'No drafts',
                         emptyText:
                             'Create a new draft to get started managing your sales.',
@@ -130,6 +140,8 @@ class SalesListPage extends ConsumerWidget {
                       _SalesTabList(
                         campaignId: campaignId,
                         rows: completed,
+                        currency: salesCurrency,
+                        calendar: home?.calendar,
                         emptyTitle: 'No completed sales',
                         emptyText:
                             'Completed sales will appear here once a draft is finished.',
@@ -137,6 +149,8 @@ class SalesListPage extends ConsumerWidget {
                       _SalesTabList(
                         campaignId: campaignId,
                         rows: voided,
+                        currency: salesCurrency,
+                        calendar: home?.calendar,
                         emptyTitle: 'No voided sales',
                         emptyText:
                             'Voided sales will be kept here for campaign records.',
@@ -157,12 +171,16 @@ class _SalesTabList extends StatelessWidget {
   const _SalesTabList({
     required this.campaignId,
     required this.rows,
+    required this.currency,
+    required this.calendar,
     required this.emptyTitle,
     required this.emptyText,
   });
 
   final String campaignId;
   final List<SalesPageRowDto> rows;
+  final CurrencyConfigDto? currency;
+  final CalendarConfigDto? calendar;
   final String emptyTitle;
   final String emptyText;
 
@@ -182,19 +200,24 @@ class _SalesTabList extends StatelessWidget {
       itemBuilder: (context, index) {
         final row = rows[index];
         final isDraft = row.status.toLowerCase() == 'draft';
+        final totalText = currency == null
+            ? '${row.totalMinor}'
+            : formatMoneyMinorUnits(row.totalMinor, currency!);
+        final dateText = calendar == null
+            ? 'Day ${row.soldWorldDay}'
+            : formatWorldDate(worldDay: row.soldWorldDay, calendar: calendar!);
         return Padding(
           padding: const EdgeInsets.only(bottom: 10),
           child: FantasyPanel(
             padding: EdgeInsets.zero,
             child: ListTile(
-              title: Text(
-                '${row.customerName ?? 'Walk-in'} - Day ${row.soldWorldDay}',
-              ),
-              subtitle: Text('Total: ${row.totalMinor}'),
+              title: Text(row.customerName ?? 'Walk-in'),
+              subtitle: Text('$dateText\nTotal: $totalText'),
+              isThreeLine: true,
               trailing: Text(row.status),
               onTap: () => context.push(
                 isDraft
-                    ? '/campaign/$campaignId/sales/draft/${row.saleId}'
+                    ? '/campaign/$campaignId/sales/checkout/${row.saleId}'
                     : '/campaign/$campaignId/sales/${row.saleId}',
               ),
             ),

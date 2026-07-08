@@ -24,6 +24,30 @@ public sealed class IdentityServiceClient(HttpClient httpClient, ILogger<Identit
         CancellationToken cancellationToken = default)
         => SendPostAsJsonAsync($"/campaigns/{campaignId}/invites", request, authorizationHeader, cancellationToken);
 
+    public Task<ForwardedJsonResponse> ForwardGetInvitesAsync(
+        Guid campaignId,
+        int skip,
+        int take,
+        string? authorizationHeader,
+        CancellationToken cancellationToken = default)
+        => SendAsync(
+            HttpMethod.Get,
+            $"/campaigns/{campaignId}/invites?skip={skip}&take={take}",
+            authorizationHeader,
+            content: null,
+            cancellationToken);
+
+    public Task<ForwardedJsonResponse> ForwardRevokeInviteAsync(
+        Guid campaignId,
+        Guid inviteId,
+        string? authorizationHeader,
+        CancellationToken cancellationToken = default)
+        => SendPostAsJsonAsync(
+            $"/campaigns/{campaignId}/invites/{inviteId}/revoke",
+            new { },
+            authorizationHeader,
+            cancellationToken);
+
     public Task<ForwardedJsonResponse> ForwardUpsertCampaignMembershipAsync(
         IdentityUpsertCampaignMembershipRequest request,
         string? authorizationHeader,

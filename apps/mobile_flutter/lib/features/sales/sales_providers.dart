@@ -4,17 +4,16 @@ import 'package:dnd_app/core/errors/app_exception.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class SalesDraftArgs {
-  const SalesDraftArgs({
-    required this.campaignId,
-    required this.draftId,
-  });
+  const SalesDraftArgs({required this.campaignId, required this.draftId});
 
   final String campaignId;
   final String draftId;
 
   @override
   bool operator ==(Object other) {
-    return other is SalesDraftArgs && campaignId == other.campaignId && draftId == other.draftId;
+    return other is SalesDraftArgs &&
+        campaignId == other.campaignId &&
+        draftId == other.draftId;
   }
 
   @override
@@ -22,34 +21,44 @@ class SalesDraftArgs {
 }
 
 class SalesReceiptArgs {
-  const SalesReceiptArgs({
-    required this.campaignId,
-    required this.saleId,
-  });
+  const SalesReceiptArgs({required this.campaignId, required this.saleId});
 
   final String campaignId;
   final String saleId;
 
   @override
   bool operator ==(Object other) {
-    return other is SalesReceiptArgs && campaignId == other.campaignId && saleId == other.saleId;
+    return other is SalesReceiptArgs &&
+        campaignId == other.campaignId &&
+        saleId == other.saleId;
   }
 
   @override
   int get hashCode => Object.hash(campaignId, saleId);
 }
 
-final salesPageProvider = FutureProvider.family<SalesPageDto, String>((ref, campaignId) async {
+final salesPageProvider = FutureProvider.family<SalesPageDto, String>((
+  ref,
+  campaignId,
+) async {
   return ref.read(bffApiProvider).getSalesPage(campaignId);
 });
 
-final salesDraftPageProvider = FutureProvider.family<SalesDraftPageDto, SalesDraftArgs>((ref, args) async {
-  return ref.read(bffApiProvider).getSalesDraftPage(args.campaignId, args.draftId);
-});
+final salesDraftPageProvider =
+    FutureProvider.family<SalesDraftPageDto, SalesDraftArgs>((ref, args) async {
+      return ref
+          .read(bffApiProvider)
+          .getSalesDraftPage(args.campaignId, args.draftId);
+    });
 
 final salesReceiptPageProvider =
-    FutureProvider.family<SalesReceiptPageDto, SalesReceiptArgs>((ref, args) async {
-      return ref.read(bffApiProvider).getSalesReceiptPage(args.campaignId, args.saleId);
+    FutureProvider.family<SalesReceiptPageDto, SalesReceiptArgs>((
+      ref,
+      args,
+    ) async {
+      return ref
+          .read(bffApiProvider)
+          .getSalesReceiptPage(args.campaignId, args.saleId);
     });
 
 final salesDraftControllerProvider =
@@ -72,7 +81,8 @@ class SalesDraftController extends StateNotifier<AsyncValue<void>> {
       if (locations.locations.isEmpty) {
         throw const AppException(
           type: AppExceptionType.validation,
-          message: 'Create at least one storage location before creating a sale draft.',
+          message:
+              'Create at least one storage location before creating a sale draft.',
         );
       }
 
@@ -89,6 +99,40 @@ class SalesDraftController extends StateNotifier<AsyncValue<void>> {
       _ref.invalidate(salesPageProvider(campaignId));
       state = const AsyncData(null);
       return response.draftId;
+    } catch (error, stackTrace) {
+      state = AsyncError(error, stackTrace);
+      rethrow;
+    }
+  }
+
+  Future<String> createDirectSale(String campaignId) async {
+    state = const AsyncLoading();
+    try {
+      final api = _ref.read(bffApiProvider);
+      final home = await api.getCampaignHomePage(campaignId);
+      final locations = await api.getInventoryLocationsPage(campaignId);
+
+      if (locations.locations.isEmpty) {
+        throw const AppException(
+          type: AppExceptionType.validation,
+          message:
+              'Create at least one storage location before creating a sale.',
+        );
+      }
+
+      final response = await api.createSale(
+        SalesCreateActionRequestDto(
+          campaignId: campaignId,
+          soldWorldDay: home.currentWorldDay,
+          storageLocationId: locations.locations.first.storageLocationId,
+          customerId: null,
+          notes: null,
+        ),
+      );
+
+      _ref.invalidate(salesPageProvider(campaignId));
+      state = const AsyncData(null);
+      return response.saleId;
     } catch (error, stackTrace) {
       state = AsyncError(error, stackTrace);
       rethrow;
@@ -122,11 +166,18 @@ class SalesDraftController extends StateNotifier<AsyncValue<void>> {
   Future<String> completeDraft(SalesDraftCompleteRequestDto request) async {
     state = const AsyncLoading();
     try {
-      final response = await _ref.read(bffApiProvider).completeDraftSale(request);
+      final response = await _ref
+          .read(bffApiProvider)
+          .completeDraftSale(request);
       _invalidateDraft(request.campaignId, request.draftId);
-      _ref.invalidate(salesReceiptPageProvider(
-        SalesReceiptArgs(campaignId: request.campaignId, saleId: request.draftId),
-      ));
+      _ref.invalidate(
+        salesReceiptPageProvider(
+          SalesReceiptArgs(
+            campaignId: request.campaignId,
+            saleId: request.draftId,
+          ),
+        ),
+      );
       state = const AsyncData(null);
       return response.saleId;
     } catch (error, stackTrace) {
@@ -137,6 +188,10 @@ class SalesDraftController extends StateNotifier<AsyncValue<void>> {
 
   void _invalidateDraft(String campaignId, String draftId) {
     _ref.invalidate(salesPageProvider(campaignId));
-    _ref.invalidate(salesDraftPageProvider(SalesDraftArgs(campaignId: campaignId, draftId: draftId)));
+    _ref.invalidate(
+      salesDraftPageProvider(
+        SalesDraftArgs(campaignId: campaignId, draftId: draftId),
+      ),
+    );
   }
 }
